@@ -1,4 +1,5 @@
-#{r libraries}
+#Code being added to github and now going to practice better version control
+
 library(deSolve)
 library(tidyverse)
 library(igraph)
@@ -26,18 +27,36 @@ SIR_community_model <- function(t, x, parms) {
     return(list(dt))
   })}
 
-# This function makes it so that all individuals start in the outside room which is the last room for all buildings
-# additionally it sets up the number of S,I, and R individuals in the scenario is proportional to the community level prevalence
+# This function sets the initial conditions for the building
+#including randomly distributing individuals throughout the building/across rooms
+
+#We assume that the proportion of S,I, and R in the community is proportional to 
+#the proportion of S, I, and R individuals in the building
 Bld_setup_func <- function(Community_output,day, delt,N_rooms){
-  Building_ICs <- Community_output[day,]
+  Building_ICs <- Community_output[day,] #Retrieves the number of S, I, and R individuals in the population at a particular day.
   
-  Sb <- Community_output$S[day]*delt
+  #delt is set below in the parameter declaration by taking into account 
+  #the max capacity of the building and how full we set the building to be
+  Sb <- Community_output$S[day]*delt 
   Ib <- Community_output$I[day]*delt
   Rb <- Community_output$R[day]*delt
-  #initial conditions for each room
-  S_x <- c(rep(0,N_rooms-1),1)*Sb
-  I_x <- c(rep(0,N_rooms-1),1)*Ib
-  R_x <- c(rep(0,N_rooms-1),1)*Rb
+  
+  #Sb, Ib, Rb are the number of Susceptible, Infected and Recovered individuals that will be in the building
+  
+  #initial conditions for each room. Randomly distribute individuals throughout rooms
+  
+  # first asign a random number between o and one for each room,
+  #broken up by S, I, and R
+  S_x <- c(runif(N_rooms, min = 0, max = 1))
+  I_x <- c(runif(N_rooms, min = 0, max = 1))
+  R_x <- c(runif(N_rooms, min = 0, max = 1))
+  
+  #normalize and then assign the correct amount of S, I, and R based on Sb, Ib, and Rb
+  S_x <- (S_x/sum(S_x))*Sb
+  I_x <- (I_x/sum(I_x))*Ib
+  R_x <- (R_x/sum(R_x))*Rb
+  
+  # we start with no particles in the building
   P_x <- c(rep(0,N_rooms))
   
   Init_conds <-c(S=S_x, I = I_x, R = R_x, P = P_x)
@@ -153,30 +172,7 @@ flux_out_particles <- function(N_rooms, Transition_matrix,State){
   return(test)
 }
 
-#Square wave function used to describe peoples movement in and out of rooms
-# A- amplitude -- this is essentially a background movement rate
-# P - Period - how long do people stay in rooms on average.
-# square_func <- function(t, A,P){
-#   value <-((1/2)+(1/pi)*atan(sin((2*pi*t*P))/0.01))
-#   return(value)
-# }
-# square_func_init <- function(t,P){
-#   value <-(1+(2/pi)*atan(sin((2*pi*t*P))/0.01))
-#   return(value)
-# }
 
-#Function that is used in the ODEs because of the time component to find the time dependent 
-#rate of movement in and out of rooms
-# Temporal_transition_function <- function(adjacency_matrix_to_use,t,C,Room_time){
-#   T_mov_temp <- c(seq(1:nrow(adjacency_matrix_to_use)))
-#   for(i in 1:nrow(adjacency_matrix_to_use)){
-#     T_mov_temp[i]<- square_func(t,A = 0.25, P = Room_time[i])
-#     
-#   }
-#   return(T_mov_temp)
-# }
-#dummy_variable <- 0
-# full system of ODES for the movement of people and particles between rooms in a building
 Particle_model <- function(t, x, parms,T_mov, theta_mov, adjacency_matrix_to_use,C){
   ncompartment <- 4
   n_rooms <- length(x)/ncompartment
@@ -185,50 +181,12 @@ Particle_model <- function(t, x, parms,T_mov, theta_mov, adjacency_matrix_to_use
   R <- as.matrix(x[(2*n_rooms+1):(3*n_rooms)])
   P <- as.matrix(x[(3*n_rooms+1):(4*n_rooms)])
   
-  
-  
-  
-  
   with(parms,{
-    # If else statement so that we can have the normal during the day transition rates and then the 
-    # end of the day transitions rates that are biased towards people leaving the building.
     
-    Temp_C <-C
-    #makes it possible for rooms to get over full
-    if((t%%1) == (0 )){
-      
-      for(i in 1:n_rooms){
-        Temp_C[i] <-runif(1,min =c( C[i]-0.5*C[i]),max = c(C[i]+0.5*C[i]))
-        
-      }
-      # print(Temp_C)
-      # print(t)
-      #dummy_variable <- dummy_variable +1
-    }else{
-      Temp_C <- C
-    }
-    #### Makes it so the matrix determining how people move is random
-    if(t%%1 == 0){
-      T_mov<- Create_Particle_T_Matrix(adjacency_matrix_to_use = adjacency_matrix_to_use, prop = 0.95)
-      # print(t)
-      # print(T_mov)
-    }else{
-      T_mov<-T_mov
-    }
-    #makes it so that people move randomly during the work day, and then leave at the end of the day
-    if((t-day_start)%%24 <= day_duration & t > day_start){
-      #print(paste("Initial_T_mov",T_mov), quote = FALSE)
-      #Temporal_vector <-
-      #print(Temporal_vector)
-      T_mov<- T_mov
-      #print(paste("Time_T_mov",Time_T_move), quote = FALSE)
-    }else{
-      T_mov<- End_of_day_T_mov_to_use
-    }
     
-    dS <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=S,Room_pops = (S+I+R),Carrying_capacity = Temp_C)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=S,Room_pops = (S+I+R),Carrying_capacity = Temp_C))
-    dI <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=I,Room_pops = (S+I+R),Carrying_capacity = Temp_C)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=I,Room_pops = (S+I+R),Carrying_capacity = Temp_C))
-    dR <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=R,Room_pops = (S+I+R),Carrying_capacity = Temp_C)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=R,Room_pops = (S+I+R),Carrying_capacity = Temp_C))
+    dS <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=S,Room_pops = (S+I+R),Carrying_capacity = C)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=S,Room_pops = (S+I+R),Carrying_capacity = C))
+    dI <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=I,Room_pops = (S+I+R),Carrying_capacity = C)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=I,Room_pops = (S+I+R),Carrying_capacity = C))
+    dR <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=R,Room_pops = (S+I+R),Carrying_capacity = C)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=R,Room_pops = (S+I+R),Carrying_capacity = C))
     #last step will be the particle EQ
     dP <- s*as.matrix(I) - a*as.matrix(P)*(S+I+R)+ 
       as.matrix(as.matrix(flux_in_particles(N_rooms, theta_mov,State = P)) - as.matrix(flux_out_particles(N_rooms, theta_mov,State = P))) - d*as.matrix(P)
@@ -236,7 +194,6 @@ Particle_model <- function(t, x, parms,T_mov, theta_mov, adjacency_matrix_to_use
     return(list(dt))})
   
 }
-
 
 
 ######################### Community simulation} ##############################
@@ -376,30 +333,30 @@ church_network
 #dev.off()
 
 #### Church Network metrics ####
-temp_church_adj_matrix <- church_adjacency_matrix
-colnames(temp_church_adj_matrix) <- c(paste("V",1:ncol(temp_church_adj_matrix),sep = ""))
-
-church_metrics <- netwrite(data_type = c("adjacency_matrix"),
-                           adjacency_matrix = temp_church_adj_matrix,
-                           directed = FALSE,
-                           net_name = "church_net")
-
-list2env(church_metrics, .GlobalEnv)
-node_measures
-church_network_measures_plot<-church_metrics$node_measure_plot
-
-png(filename = "church_network_measures_plot.png",units="in", width=10, height=10, res=300)
-church_network_measures_plot
-dev.off()
-
-table_data<- church_metrics$system_level_measures
-table_data <- table_data %>% select()
-church_table <- kable(church_metrics$system_level_measures, row.names = FALSE)
-church_table <- kable(church_metrics$system_level_measures, format = "latex", booktabs = TRUE, row.names = FALSE,longtable=TRUE) %>% 
-  kable_styling(latex_options = c("scale_down"))
-
-church_latex_table <- capture.output(print(church_table))
-writeLines(church_latex_table, "church_table.tex")
+# temp_church_adj_matrix <- church_adjacency_matrix
+# colnames(temp_church_adj_matrix) <- c(paste("V",1:ncol(temp_church_adj_matrix),sep = ""))
+# 
+# church_metrics <- netwrite(data_type = c("adjacency_matrix"),
+#                            adjacency_matrix = temp_church_adj_matrix,
+#                            directed = FALSE,
+#                            net_name = "church_net")
+# 
+# list2env(church_metrics, .GlobalEnv)
+# node_measures
+# church_network_measures_plot<-church_metrics$node_measure_plot
+# 
+# png(filename = "church_network_measures_plot.png",units="in", width=10, height=10, res=300)
+# church_network_measures_plot
+# dev.off()
+# 
+# table_data<- church_metrics$system_level_measures
+# table_data <- table_data %>% select()
+# church_table <- kable(church_metrics$system_level_measures, row.names = FALSE)
+# church_table <- kable(church_metrics$system_level_measures, format = "latex", booktabs = TRUE, row.names = FALSE,longtable=TRUE) %>% 
+#   kable_styling(latex_options = c("scale_down"))
+# 
+# church_latex_table <- capture.output(print(church_table))
+# writeLines(church_latex_table, "church_table.tex")
 
 
 #Initialize Transition matrices, both people and particles

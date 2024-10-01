@@ -26,18 +26,36 @@ SIR_community_model <- function(t, x, parms) {
     return(list(dt))
   })}
 
-# This function makes it so that all individuals start in the outside room which is the last room for all buildings
-# additionally it sets up the number of S,I, and R individuals in the scenario is proportional to the community level prevalence
+# This function sets the initial conditions for the building
+#including randomly distributing individuals throughout the building/across rooms
+
+#We assume that the proportion of S,I, and R in the community is proportional to 
+#the proportion of S, I, and R individuals in the building
 Bld_setup_func <- function(Community_output,day, delt,N_rooms){
-  Building_ICs <- Community_output[day,]
+  Building_ICs <- Community_output[day,] #Retrieves the number of S, I, and R individuals in the population at a particular day.
   
-  Sb <- Community_output$S[day]*delt
+  #delt is set below in the parameter declaration by taking into account 
+  #the max capacity of the building and how full we set the building to be
+  Sb <- Community_output$S[day]*delt 
   Ib <- Community_output$I[day]*delt
   Rb <- Community_output$R[day]*delt
-  #initial conditions for each room
-  S_x <- c(rep(0,N_rooms-1),1)*Sb
-  I_x <- c(rep(0,N_rooms-1),1)*Ib
-  R_x <- c(rep(0,N_rooms-1),1)*Rb
+  
+  #Sb, Ib, Rb are the number of Susceptible, Infected and Recovered individuals that will be in the building
+  
+  #initial conditions for each room. Randomly distribute individuals throughout rooms
+  
+  # first asign a random number between o and one for each room,
+  #broken up by S, I, and R
+  S_x <- c(runif(N_rooms, min = 0, max = 1))
+  I_x <- c(runif(N_rooms, min = 0, max = 1))
+  R_x <- c(runif(N_rooms, min = 0, max = 1))
+  
+  #normalize and then assign the correct amount of S, I, and R based on Sb, Ib, and Rb
+  S_x <- (S_x/sum(S_x))*Sb
+  I_x <- (I_x/sum(I_x))*Ib
+  R_x <- (R_x/sum(R_x))*Rb
+  
+  # we start with no particles in the building
   P_x <- c(rep(0,N_rooms))
   
   Init_conds <-c(S=S_x, I = I_x, R = R_x, P = P_x)
@@ -154,42 +172,6 @@ flux_out_particles <- function(N_rooms, Transition_matrix,State){
 }
 
 
-# Create_Enter_Building_matrix <-function(adjacency_matrix_to_use,prop){
-#   #set.seed(12312145) # <- easier for finding debugging
-#   theta_mov <- data.frame(matrix(runif(N_rooms^2), nrow = N_rooms))
-#   theta_mov <- adjacency_matrix_to_use*theta_mov
-#   #diag(theta_mov) <- 0
-#   theta_mov_prop <- prop #proportion of particles that move
-#   theta_mov_norm <- t(apply(theta_mov, 1, function(x) x / sum(x)))
-#   theta_mov <- theta_mov_prop*theta_mov_norm
-#   
-#   
-#   return(theta_mov)
-# }
-#Square wave function used to describe peoples movement in and out of rooms
-# A- amplitude -- this is essentially a background movement rate
-# P - Period - how long do people stay in rooms on average.
-# square_func <- function(t, A,P){
-#   value <-((1/2)+(1/pi)*atan(sin((2*pi*t*P))/0.01))
-#   return(value)
-# }
-# square_func_init <- function(t,P){
-#   value <-(1+(2/pi)*atan(sin((2*pi*t*P))/0.01))
-#   return(value)
-# }
-
-#Function that is used in the ODEs because of the time component to find the time dependent 
-#rate of movement in and out of rooms
-# Temporal_transition_function <- function(adjacency_matrix_to_use,t,C,Room_time){
-#   T_mov_temp <- c(seq(1:nrow(adjacency_matrix_to_use)))
-#   for(i in 1:nrow(adjacency_matrix_to_use)){
-#     T_mov_temp[i]<- square_func(t,A = 0.25, P = Room_time[i])
-#     
-#   }
-#   return(T_mov_temp)
-# }
-#dummy_variable <- 0
-# full system of ODES for the movement of people and particles between rooms in a building
 Particle_model <- function(t, x, parms,T_mov, theta_mov, adjacency_matrix_to_use,C){
   ncompartment <- 4
   n_rooms <- length(x)/ncompartment
@@ -197,102 +179,13 @@ Particle_model <- function(t, x, parms,T_mov, theta_mov, adjacency_matrix_to_use
   I <- as.matrix(x[(n_rooms+1):(2*n_rooms)])
   R <- as.matrix(x[(2*n_rooms+1):(3*n_rooms)])
   P <- as.matrix(x[(3*n_rooms+1):(4*n_rooms)])
-  
-  
-  
-  
-  
+
   with(parms,{
-    # If else statement so that we can have the normal during the day transition rates and then the 
-    # end of the day transitions rates that are biased towards people leaving the building.
+  
     
-    Temp_C <- C
-    Temp_T_mov <- T_mov
-    #most outer if statement is just for if during the day or not
-    if (t%%24 <= day_duration) {
-      #now if in entering building phase at the beginning of the day
-      if (t%%24 <= enter_building_phase) {
-        
-        # restrict adjacency matrix so people can't go back outside immediately after entering
-        
-        Temp_T_mov[,ncol(Temp_T_mov)] <- 0 # changes the outside column/room to 0 for each row/room, that is, no one can leave the building
-        Temp_T_mov <- t(apply(Temp_T_mov, 1, function(x) x / sum(x)))
-        Temp_T_mov <- prop_to_mov*Temp_T_mov
-        Temp_T_mov[ncol(Temp_T_mov),] <- Temp_T_mov[ncol(Temp_T_mov),]*5
-        if (t%%1 == 0) { #if at top of hour
-          ##randomize T_mov
-          Temp_T_mov<- Create_Particle_T_Matrix(adjacency_matrix_to_use = adjacency_matrix_to_use, prop = prop_to_mov)
-          # print(t)
-          # print(T_mov)
-          ##add variation around carrying capacities
-          for(i in 1:n_rooms){
-            Temp_C[i] <-runif(1,min =c( C[i]-0.5*C[i]),max = c(C[i]+0.5*C[i]))
-            
-          }
-          Temp_T_mov[,ncol(Temp_T_mov)] <- 0 # changes the outside column/room to 0 for each row/room, that is, no one can leave the building
-          Temp_T_mov <- t(apply(Temp_T_mov, 1, function(x) x / sum(x)))
-          Temp_T_mov <- prop_to_mov*Temp_T_mov
-        }
-      }else{ # not in entering building phase
-        # T_mov stays as T_mov
-        Temp_T_mov <- T_mov
-        if (t%%1 == 0) {#if at top of hour
-          #randomize T_mov
-          Temp_T_mov<- Create_Particle_T_Matrix(adjacency_matrix_to_use = adjacency_matrix_to_use, prop = prop_to_mov)
-          # print(t)
-          # print(T_mov)
-          #add variation around carrying capacities
-          for(i in 1:n_rooms){
-            Temp_C[i] <-runif(1,min =c( C[i]-0.5*C[i]),max = c(C[i]+0.5*C[i]))
-            
-          }
-        }
-      }
-    }else{# Not during the day, make it so everyone leaves
-      Temp_T_mov <- End_of_day_T_mov_to_use
-    }
-    
-    #Temp_C <-C
-    #makes it possible for rooms to get over full
-    # if((t%%1) == (0 )){
-    #   
-    #   for(i in 1:n_rooms){
-    #     Temp_C[i] <-runif(1,min =c( C[i]-0.5*C[i]),max = c(C[i]+0.5*C[i]))
-    #     
-    #   }
-    # print(Temp_C)
-    # print(t)
-    #dummy_variable <- dummy_variable +1
-    #}else{
-    #  Temp_C <- C
-    #}
-    #### Makes it so the matrix determining how people move is random
-    # if(t%%1 == 0){
-    #   T_mov<- Create_Particle_T_Matrix(adjacency_matrix_to_use = adjacency_matrix_to_use, prop = 0.95)
-    #   # print(t)
-    #   # print(T_mov)
-    # }else{
-    #   T_mov<-T_mov
-    # }
-    #makes it so that people move randomly during the work day, and then leave at the end of the day
-    # if((t-day_start)%%24 <= day_duration & t > day_start){
-    #   #print(paste("Initial_T_mov",T_mov), quote = FALSE)
-    #   #Temporal_vector <-
-    #   #print(Temporal_vector)
-    #   if((t-day_start)%%24 <= enter_build_time & t > day_start){
-    #     
-    #   }else{
-    #     T_mov<- T_mov
-    #   }
-    #   
-    #   #print(paste("Time_T_mov",Time_T_move), quote = FALSE)
-    # }else{
-    #   T_mov<- End_of_day_T_mov_to_use
-    # }
-    
-    dS <- as.matrix((flux_in_people(N_rooms, Transition_matrix =Temp_T_mov, State=S,Room_pops = (S+I+R),Carrying_capacity = Temp_C)) - flux_out_people(N_rooms, Transition_matrix = Temp_T_mov, State=S,Room_pops = (S+I+R),Carrying_capacity = Temp_C))
-    dI <- as.matrix((flux_in_people(N_rooms, Transition_matrix =Temp_T_mov, State=I,Room_pops = (S+I+R),Carrying_capacity = Temp_C)) - flux_out_people(N_rooms, Transition_matrix = Temp_T_mov, State=I,Room_pops = (S+I+R),Carrying_capacity = Temp_C))
-    dR <- as.matrix((flux_in_people(N_rooms, Transition_matrix =Temp_T_mov, State=R,Room_pops = (S+I+R),Carrying_capacity = Temp_C)) - flux_out_people(N_rooms, Transition_matrix = Temp_T_mov, State=R,Room_pops = (S+I+R),Carrying_capacity = Temp_C))
+    dS <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=S,Room_pops = (S+I+R),Carrying_capacity = C)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=S,Room_pops = (S+I+R),Carrying_capacity = C))
+    dI <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=I,Room_pops = (S+I+R),Carrying_capacity = C)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=I,Room_pops = (S+I+R),Carrying_capacity = C))
+    dR <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=R,Room_pops = (S+I+R),Carrying_capacity = C)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=R,Room_pops = (S+I+R),Carrying_capacity = C))
     #last step will be the particle EQ
     dP <- s*as.matrix(I) - a*as.matrix(P)*(S+I+R)+ 
       as.matrix(as.matrix(flux_in_particles(N_rooms, theta_mov,State = P)) - as.matrix(flux_out_particles(N_rooms, theta_mov,State = P))) - d*as.matrix(P)
@@ -374,9 +267,9 @@ Church_C<- c(100, #column 1 - main area / Hallway
 ) 
 Church_C <- c(Church_C,sum(Church_C))
 #outside should only be able to hold the total capacity of the building 
-Building_max <- Church_C[N_rooms]
-Max_capacity <- Prop_full*Building_max
-delt <- Max_capacity/community_pop # proportionality constant ( what proportion of individuals from the community are in the building of interest)
+Max_Building_Capacity <- Church_C[N_rooms]
+Adj_Max_Building_Capacity <- Prop_full*Max_Building_Capacity
+delt <- Adj_Max_Building_Capacity/community_pop # proportionality constant ( what proportion of individuals from the community are in the building of interest)
 
 Church_setup <- Bld_setup_func(Community_output = Community_output,day = day,delt = delt,N_rooms =N_rooms)
 church_graph <-church_graph %>% set_vertex_attr( "Infectious", value = Church_setup$I_x) %>% 
