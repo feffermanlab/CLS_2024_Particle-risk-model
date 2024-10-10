@@ -280,7 +280,7 @@ Church_C<- c(100, #column 1 - main area / Hallway
        ) 
 
 #outside should only be able to hold the total capacity of the building 
-Max_Building_Capacity <- Church_C[N_rooms]
+Max_Building_Capacity <- sum(Church_C)
 Adj_Max_Building_Capacity <- Prop_full*Max_Building_Capacity
 delt <- Adj_Max_Building_Capacity/community_pop # proportionality constant ( what proportion of individuals from the community are in the building of interest)
 
