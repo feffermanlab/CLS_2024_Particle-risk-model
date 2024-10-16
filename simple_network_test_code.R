@@ -151,10 +151,10 @@ flux_out_people <- function(N_rooms, Transition_matrix,State,Room_pops,Carrying_
 
 flux_in_particles <- function(N_rooms, Transition_matrix,State){
   all_room_change <- c(seq(N_rooms))
-  for(x in 1:N_rooms){
+  for(x in 1:N_rooms){ #flow in to room x from other rooms (j)
     flux_in_temp <- 0
-    for(i in 1:N_rooms){
-      flux_in_temp <- flux_in_temp + State[i]*Transition_matrix[i,x]
+    for(j in 1:N_rooms){
+      flux_in_temp <- flux_in_temp + State[j]*Transition_matrix[j,x]
     }
     all_room_change[x] <- flux_in_temp
   }
@@ -167,8 +167,8 @@ flux_out_particles <- function(N_rooms, Transition_matrix,State){
   all_room_change <- c(seq(N_rooms))
   for(x in 1:N_rooms){
     flux_out_temp <- 0
-    for(i in 1:N_rooms){
-      flux_out_temp <- flux_out_temp + State[x]*Transition_matrix[x,i]
+    for(j in 1:N_rooms){
+      flux_out_temp <- flux_out_temp + State[x]*Transition_matrix[x,j]
     }
     all_room_change[x] <- flux_out_temp
   }
@@ -178,7 +178,7 @@ flux_out_particles <- function(N_rooms, Transition_matrix,State){
 
 
 Particle_model <- function(t, x, parms,T_mov, theta_mov, adjacency_matrix_to_use,C_x){
-  ncompartment <- 5
+  ncompartment <- 4
   n_rooms <- length(x)/ncompartment
   S <- as.matrix(x[1:n_rooms])
   I <- as.matrix(x[(n_rooms+1):(2*n_rooms)])
@@ -189,18 +189,17 @@ Particle_model <- function(t, x, parms,T_mov, theta_mov, adjacency_matrix_to_use
   with(parms,{
     
     
-    dS <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=S,Room_pops = N_x,Carrying_capacity = C_x)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=S,Room_pops = N_x,Carrying_capacity = C_x))
+    dS <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=S,Room_pops = (S+I+R)*Adj_Max_Building_Capacity,Carrying_capacity = C_x)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=S,Room_pops = (S+I+R)*Adj_Max_Building_Capacity,Carrying_capacity = C_x))
     
-    dI <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=I,Room_pops = N_x,Carrying_capacity = C_x)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=I,Room_pops = N_x,Carrying_capacity = C_x))
+    dI <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=I,Room_pops = (S+I+R)*Adj_Max_Building_Capacity,Carrying_capacity = C_x)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=I,Room_pops = (S+I+R)*Adj_Max_Building_Capacity,Carrying_capacity = C_x))
     
-    dR <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=R,Room_pops = N_x,Carrying_capacity = C_x)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=R,Room_pops = N_x,Carrying_capacity = C_x))
+    dR <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=R,Room_pops = (S+I+R)*Adj_Max_Building_Capacity,Carrying_capacity = C_x)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=R,Room_pops = (S+I+R)*Adj_Max_Building_Capacity,Carrying_capacity = C_x))
     #last step will be the particle EQ
     
-    dP <- s*as.matrix(I)*as.matrix(N_x) - as.matrix(a*P/(lam*C_x*N_x))-d*as.matrix(P) + as.matrix(as.matrix(flux_in_particles(N_rooms, theta_mov,State = P)) - as.matrix(flux_out_particles(N_rooms, theta_mov,State = P)))
+    dP <- s*as.matrix(I)*as.matrix((S+I+R)*Adj_Max_Building_Capacity) - as.matrix(a*P/(lam*C_x*((S+I+R)*Adj_Max_Building_Capacity)))-d*as.matrix(P) + as.matrix(as.matrix(flux_in_particles(N_rooms, theta_mov,State = P)) - as.matrix(flux_out_particles(N_rooms, theta_mov,State = P)))
     
-    dN_x <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=N_x,Room_pops = N_x,Carrying_capacity = C_x)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=N_x,Room_pops = N_x,Carrying_capacity = C_x))
     
-    dt <- c(dS,dI,dR,dP,dN_x)
+    dt <- c(dS,dI,dR,dP)
     return(list(dt))})
   
 }
@@ -225,7 +224,7 @@ Community_output %>% pivot_longer(cols = !time) %>% arrange(desc(time))%>%
   labs(x= "Time (days)", y = "Number of individuals")+ggtitle("Community outbreak of pathogen")
 
 ############# Global variables #########
-m <-5 #number of equations per room
+m <-4 #number of equations per room
 day <- 31 # what day from the community model do we want to model and base our proportion of Susceptible, Infected, and Recovered individuals do we want to look at
 Prop_full <- 0.8
 #day_start <- 0
@@ -309,7 +308,7 @@ Church_setup <- Bld_setup_func(Community_output = Community_output,day = day,del
 
 church_graph <-church_graph %>% set_vertex_attr( "Infectious", value = Church_setup$I_x) %>% 
   set_vertex_attr("Room", value = seq(1:N_rooms))# + 
-Church_Init_conds <-c(S=Church_setup$S, I = Church_setup$I, R = Church_setup$R, P = Church_setup$P, N_x =Church_setup$N_x)
+Church_Init_conds <-c(S=Church_setup$S, I = Church_setup$I, R = Church_setup$R, P = Church_setup$P)
 
 # church_network <- ggplot(church_graph, aes(x = x, y = y, xend = xend, yend = yend))+
 #   geom_edges(color = "grey75")+
@@ -369,11 +368,11 @@ Church_data_clean %>% filter(State == "P") %>%
   ggplot( aes(x=time, y = Number, group =Room, color = Room))+
   geom_line()+theme_classic()+
   labs(x = "Time (hours)", y= "Number of infectious particles")+ggtitle("Infectious particles in rooms within a building")
-Church_data_clean %>% filter(State == "x") %>% 
-  group_by(State,Room)%>% 
-  ggplot( aes(x=time, y = Number, group =Room, color = Room))+
-  geom_line()+theme_classic()+
-  labs(x = "Time (hours)", y= "Number of individuals")+ggtitle("Number of individuals in rooms within a building")
+# Church_data_clean %>% filter(State == "x") %>% 
+#   group_by(State,Room)%>% 
+#   ggplot( aes(x=time, y = Number, group =Room, color = Room))+
+#   geom_line()+theme_classic()+
+#   labs(x = "Time (hours)", y= "Number of individuals")+ggtitle("Number of individuals in rooms within a building")
 
 # Church_data_clean %>% filter(State != "P") %>% 
 #   group_by(time,Room)%>% summarise(total_room_pop=sum(Number)) %>% group_by(time) %>% summarise(tot_bld_pop =sum(total_room_pop)) %>% 
@@ -382,7 +381,7 @@ Church_data_clean %>% filter(State == "x") %>%
 #   labs(x = "Time (hours)", y= "Number of people")+ggtitle("number of people in building")
 
 Church_data_clean %>% filter(State == "S"| State == "I" | State == "R") %>% ungroup() %>% group_by(time, Room) %>% summarise(Total_prop=sum(Number)) %>%
-  ggplot(aes(x=time, y=Total_prop, color=Room))+geom_line()+
+  ggplot(aes(x=time, y=Total_prop*Adj_Max_Building_Capacity, color=Room))+geom_line()+
   labs(x = "Time (hours)", y= "Proportion of individuals")+ggtitle("Proportion of individuals in rooms within a building")
 
 Church_data_clean %>% filter(State == "S"| State == "I" | State == "R") %>% ungroup() %>% group_by(time) %>% summarise(Total_prop=sum(Number)) %>%
@@ -390,7 +389,7 @@ Church_data_clean %>% filter(State == "S"| State == "I" | State == "R") %>% ungr
   labs(x = "Time (hours)", y= "Proportion of individuals")+ggtitle("Proportion of individuals in the building")
 
 
-Church_data_clean %>% filter(State== "x")%>% ungroup() %>% group_by(time) %>% summarise(Total_pop=sum(Number)) %>%
+Church_data_clean %>% filter(State == "S"| State == "I" | State == "R")%>% ungroup() %>% group_by(time) %>% summarise(Total_pop=sum(Number)*Adj_Max_Building_Capacity) %>%
   ggplot(aes(x=time, y=Total_pop))+geom_line()+
   labs(x = "Time (hours)", y= "Number of individuals")+ggtitle("Number of individuals in the building")
 
