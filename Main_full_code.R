@@ -33,35 +33,55 @@ SIR_community_model <- function(t, x, parms) {
 #We assume that the proportion of S,I, and R in the community is proportional to 
 #the proportion of S, I, and R individuals in the building
 Bld_setup_func <- function(Community_output,day, delt,N_rooms){
-  Building_ICs <- Community_output[day,] #Retrieves the number of S, I, and R individuals in the population at a particular day.
+  Building_ICs <- Community_output[day,] #Retrieves the number of S, I, and R individuals in the community at a particular day.
   
-  #delt is set below in the parameter declaration by taking into account 
-  #the max capacity of the building and how full we set the building to be
-  Sb <- Community_output$S[day]*delt 
-  Ib <- Community_output$I[day]*delt
-  Rb <- Community_output$R[day]*delt
+  #S_c + I_c + R_c = N_c | sum of the number of susceptible, infectious and recovered in the community is the total population of the community
+  # we want the proportion of S, I, and R in the community to match the proportion of S, I, and R in the building:
+  # (S_c + I_c + R_c)*delt = building_pop
+  # we set building_pop based on how full we want the building to be: this is our adjusted_building capacity set above
+  #i.e. Prop_Full*Building_Max_Capacity= Adjusted_building_capacity.
+  # then building_pop = Adjusted_building_capacity so that we can get our desired amount of individuals in the building. 
+  # and then we solve for delt above: delt = adjusted_building_pop/community_pop 
+  
+  Sb <- Community_output$S[day]*delt # number of susceptible in building
+  Ib <- Community_output$I[day]*delt # number of Infectious in building
+  Rb <- Community_output$R[day]*delt # number of Recovered in building
   
   #Sb, Ib, Rb are the number of Susceptible, Infected and Recovered individuals that will be in the building
   
   #initial conditions for each room. Randomly distribute individuals throughout rooms
   
-  # first asign a random number between o and one for each room,
+  # first assign a random number between 0 and 1 for each room,
   #broken up by S, I, and R
   S_x <- c(runif(N_rooms, min = 0, max = 1))
   I_x <- c(runif(N_rooms, min = 0, max = 1))
   R_x <- c(runif(N_rooms, min = 0, max = 1))
   
-  #normalize and then assign the correct amount of S, I, and R based on Sb, Ib, and Rb
-  S_x <- (S_x/sum(S_x))*Sb
-  I_x <- (I_x/sum(I_x))*Ib
-  R_x <- (R_x/sum(R_x))*Rb
+  #normalize and then assign the correct number of S, I, and R based on Sb, Ib, and Rb
+  S_x <- ((S_x/sum(S_x))*Sb)
+  I_x <- ((I_x/sum(I_x))*Ib)
+  R_x <- ((R_x/sum(R_x))*Rb)
+  
+  
+  S_prop <- ((S_x/sum(S_x))*Sb)/(Sb+Ib+Rb)
+  I_prop <- ((I_x/sum(I_x))*Ib)/(Sb+Ib+Rb)
+  R_prop <- ((R_x/sum(R_x))*Rb)/(Sb+Ib+Rb)
+  
+  #this model is of the proportion of S, I and R in each room so now we need to switch from numbers to proportions.
+  # but we need to keep the total number of individuals in each room since that is in our model
+  Init_conds_nums <- data.frame(S_num = S_x, I_num = I_x, R_num = R_x)
+  Init_conds_nums <- Init_conds_nums %>% mutate(N_x = S_num + I_num + R_num)
+  Init_conds_props <- Init_conds_nums %>% 
+    mutate(S_prop = S_num/N_x, I_prop = I_num/N_x, R_prop = R_num/N_x)%>%
+    select(S_prop,I_prop,R_prop,N_x)
   
   # we start with no particles in the building
   P_x <- c(rep(0,N_rooms))
   
-  Init_conds <-c(S=S_x, I = I_x, R = R_x, P = P_x)
+  Init_conds_props <- Init_conds_props %>% mutate(S_prop = S_prop,I_prop =I_prop,R_prop= R_prop, P_x =P_x,N_x=N_x)
+  #Init_conds <-c(S=S_x/sum(Sb+Ib+Rb), I = I_x/sum(Sb+Ib+Rb), R = R_x/sum(Sb+Ib+Rb), P = P_x)
   
-  return(data.frame(S_x=S_x,I_x=I_x,R_x=R_x,P_x=P_x))
+  return(data.frame(S=S_prop,I=I_prop,R=R_prop, P=P_x, N_x = S_x+I_x+R_x))
 }
 
 
@@ -72,56 +92,43 @@ Bld_setup_func <- function(Community_output,day, delt,N_rooms){
 # changed by giving the function a different adjacency matrix - this would be good if
 # we want to take into account ventilation routes.
 Create_T_Matrix <-function(adjacency_matrix_to_use){
-  #set.seed(123145) # <- easier for finding debugging
-  T_mov <- data.frame(matrix(runif(N_rooms^2), nrow = N_rooms))
-  T_mov <- adjacency_matrix_to_use*T_mov
-  T_mov_norm <- t(apply(T_mov, 1, function(x) x / sum(x)))
+  #set.seed(123145) # <- easier for debugging
+  T_mov <- data.frame(matrix(runif(N_rooms^2), nrow = N_rooms)) #populates a square matrix/dataframe with random numbers between 0 and 1 for the number of rooms that our building has.
+  diag(T_mov) <- 0 #set diagonal to 0
+  T_mov <- adjacency_matrix_to_use*T_mov #restrict the movement according to our network/adjacency matrix
+  T_mov_norm <- t(apply(T_mov, 1, function(x) x / sum(x))) # normalize so that there aren't more people moving than what can (rows should sum to 1)
   T_mov <-T_mov_norm
   return(T_mov)
 }
 
-#function that uses the adjacency matrix to calculate distances and then sets transition rates
-#such that moving closer to the outside room has higher rates. 
-End_of_day_T_function <- function(adjacency_matrix_to_use){
-  #set.seed(12312145)
-  Random_T_mov <- Create_T_Matrix(adjacency_matrix_to_use = adjacency_matrix_to_use)
-  End_day_T_mov <- Random_T_mov
-  distance_vector <- distances(graph_to_use, to = as.character(nrow(adjacency_matrix_to_use)))
-  for(i in 1:N_rooms){
-    for(j in 1:N_rooms){
-      if (distance_vector[j] < distance_vector[i]) {
-        End_day_T_mov[i,j] <- 10
-      }else{
-        End_day_T_mov[i,j] <- 0.5
-      }
-    }
-  }
-  End_day_T_mov <- End_day_T_mov*adjacency_matrix_to_use
-  return(End_day_T_mov)
-}
+
 
 # 
-Create_Particle_T_Matrix<-function(adjacency_matrix_to_use,prop){
-  #set.seed(12312145) # <- easier for finding debugging
-  theta_mov <- data.frame(matrix(runif(N_rooms^2), nrow = N_rooms))
-  theta_mov <- adjacency_matrix_to_use*theta_mov
-  #diag(theta_mov) <- 0
-  theta_mov_prop <- prop #proportion of particles that move
-  theta_mov_norm <- t(apply(theta_mov, 1, function(x) x / sum(x)))
-  theta_mov <- theta_mov_prop*theta_mov_norm
-  
-  
-  return(theta_mov)
-}
+# Create_Particle_T_Matrix<-function(adjacency_matrix_to_use,prop){
+#   #set.seed(12312145) # <- easier for finding debugging
+#   theta_mov <- data.frame(matrix(runif(N_rooms^2), nrow = N_rooms))
+#   theta_mov <- adjacency_matrix_to_use*theta_mov
+#   #diag(theta_mov) <- 0
+#   theta_mov_prop <- prop #proportion of particles that move
+#   theta_mov_norm <- t(apply(theta_mov, 1, function(x) x / sum(x)))
+#   theta_mov <- theta_mov_prop*theta_mov_norm
+#   
+#   
+#   return(theta_mov)
+# }
 
 # Functions for finding the flux in and flux out of a room - specifically for people - different for
 # people/particles because only so many people can fit in a room however particles don't have a limit.
 flux_in_people <- function(N_rooms, Transition_matrix,State,Room_pops,Carrying_capacity,t){
+  # Transition_matrix <- matrix(c(0,0.5,1,0.7,0,0,0.3,0.5,0), nrow = 3,ncol = 3)
+  # State <- Church_setup$S_prop
+  # Room_pops <- Church_setup$N_x
+  # Carrying_capacity <- Church_C
   all_room_change <- c(seq(N_rooms))
-  for(x in 1:N_rooms){
+  for(x in 1:N_rooms){ #flow in to room x from other rooms (j)
     flux_in_temp <- 0
-    for(i in 1:N_rooms){
-      flux_in_temp <- flux_in_temp + State[i]*Transition_matrix[i,x]*(1-(Room_pops[x]/Carrying_capacity[x]))
+    for(j in 1:N_rooms){
+      flux_in_temp <- flux_in_temp + State[j]*Transition_matrix[j,x]*(1-(Room_pops[x]/Carrying_capacity[x]))
     }
     all_room_change[x] <- flux_in_temp
   }
@@ -134,8 +141,8 @@ flux_out_people <- function(N_rooms, Transition_matrix,State,Room_pops,Carrying_
   all_room_change <- c(seq(N_rooms))
   for(x in 1:N_rooms){
     flux_out_temp <- 0
-    for(i in 1:N_rooms){
-      flux_out_temp <- flux_out_temp + State[x]*Transition_matrix[x,i]*(1-(Room_pops[i]/Carrying_capacity[i]))
+    for(j in 1:N_rooms){
+      flux_out_temp <- flux_out_temp + State[x]*Transition_matrix[x,j]*(1-(Room_pops[j]/Carrying_capacity[j]))
     }
     all_room_change[x] <- flux_out_temp
   }
@@ -143,8 +150,6 @@ flux_out_people <- function(N_rooms, Transition_matrix,State,Room_pops,Carrying_
   return(test)
 }
 
-
-# Functions for finding the flux in and the flux out for particles
 flux_in_particles <- function(N_rooms, Transition_matrix,State){
   all_room_change <- c(seq(N_rooms))
   for(x in 1:N_rooms){
@@ -173,27 +178,36 @@ flux_out_particles <- function(N_rooms, Transition_matrix,State){
 }
 
 
-Particle_model <- function(t, x, parms,T_mov, theta_mov, adjacency_matrix_to_use,C){
-  ncompartment <- 4
+Particle_model <- function(t, x, parms,T_mov, theta_mov, adjacency_matrix_to_use,C_x){
+  ncompartment <- 5
   n_rooms <- length(x)/ncompartment
   S <- as.matrix(x[1:n_rooms])
   I <- as.matrix(x[(n_rooms+1):(2*n_rooms)])
   R <- as.matrix(x[(2*n_rooms+1):(3*n_rooms)])
   P <- as.matrix(x[(3*n_rooms+1):(4*n_rooms)])
+  N_x <- as.matrix(x[(4*n_rooms+1):(5*n_rooms)])
   
   with(parms,{
     
     
-    dS <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=S,Room_pops = (S+I+R),Carrying_capacity = C)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=S,Room_pops = (S+I+R),Carrying_capacity = C))
-    dI <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=I,Room_pops = (S+I+R),Carrying_capacity = C)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=I,Room_pops = (S+I+R),Carrying_capacity = C))
-    dR <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=R,Room_pops = (S+I+R),Carrying_capacity = C)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=R,Room_pops = (S+I+R),Carrying_capacity = C))
+    dS <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=S,Room_pops = N_x,Carrying_capacity = C_x)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=S,Room_pops = N_x,Carrying_capacity = C_x))
+    
+    dI <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=I,Room_pops = N_x,Carrying_capacity = C_x)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=I,Room_pops = N_x,Carrying_capacity = C_x))
+    
+    dR <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=R,Room_pops = N_x,Carrying_capacity = C_x)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=R,Room_pops = N_x,Carrying_capacity = C_x))
     #last step will be the particle EQ
-    dP <- s*as.matrix(I) - a*as.matrix(P)*(S+I+R)+ 
-      as.matrix(as.matrix(flux_in_particles(N_rooms, theta_mov,State = P)) - as.matrix(flux_out_particles(N_rooms, theta_mov,State = P))) - d*as.matrix(P)
-    dt <- c(dS,dI,dR,dP)
+    
+    dP <- s*as.matrix(I)*as.matrix(N_x) - as.matrix(a*P/(lam*C_x*N_x))-d*as.matrix(P) + as.matrix(as.matrix(flux_in_particles(N_rooms, theta_mov,State = P)) - as.matrix(flux_out_particles(N_rooms, theta_mov,State = P)))
+    
+    dN_x <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=N_x,Room_pops = N_x,Carrying_capacity = C_x)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=N_x,Room_pops = N_x,Carrying_capacity = C_x))
+    
+    dt <- c(dS,dI,dR,dP,dN_x)
     return(list(dt))})
   
 }
+#   NEW   as.matrix(s*I) + as.matrix(flux_in_particles(N_rooms, theta_mov,State = P)) - as.matrix(flux_out_particles(N_rooms, theta_mov,State = P)) - d*as.matrix(P)
+
+# OLD s*as.matrix(I) - a*as.matrix(P)*(S+I+R)+ as.matrix(as.matrix(flux_in_particles(N_rooms, theta_mov,State = P)) - as.matrix(flux_out_particles(N_rooms, theta_mov,State = P))) - d*as.matrix(P)
 
 
 ######################### Community simulation} ##############################
@@ -212,13 +226,14 @@ Community_output %>% pivot_longer(cols = !time) %>% arrange(desc(time))%>%
   labs(x= "Time (days)", y = "Number of individuals")+ggtitle("Community outbreak of pathogen")
 
 ############# Global variables #########
-m <-4 #number of equations per room
+m <-5 #number of equations per room
 day <- 31 # what day from the community model do we want to model and base our proportion of Susceptible, Infected, and Recovered individuals do we want to look at
 Prop_full <- 0.8
-day_start <- 0
-day_duration <- 8
-Maxtime <- 24*7
+#day_start <- 0
+
+Maxtime <- 24*3
 times <- seq(from = 0, to = Maxtime, by = 0.2)
+prop_to_mov <- 0.9
 
 # units of particle equation are not in raw number of particles but instead in volumetric air. 
 # units are Liters/time 
@@ -241,30 +256,29 @@ times <- seq(from = 0, to = Maxtime, by = 0.2)
 #NanoLiters = (180,a =6*10^11, d=3)
 #parms_Liters <- data.frame(s=1.8*10^-7,a=600, d=3)
 #parms_nanoLiters <- data.frame(180,a =6*10^11, d=3)
-parms <-data.frame(s=100,a=5, d=3)
-
+parms <-data.frame(s=100,a=5, d=3,lam = 1)
 ####################  First example - church #############################
 
-church_adjacency_matrix <- matrix(c(c(0,rep(1,3),rep(0,8),rep(1,4),rep(0,31-17),1), #column 1 - main area / Hallway
-                                    c(1,0,0,1,rep(0,12),rep(1,4),rep(0,31-20)), # column 2 - Hallway
-                                    c(1,0,0,1,rep(0,4),rep(1,4),rep(0,31-12)), # column 3 - Hallway
-                                    c(1,1,1,0,1,0,1,1,rep(0,31-8)), #column 4 Main room
-                                    c(rep(0,3),1,0,1,0,1,rep(0,17),1,rep(0, 31-26)), # # column 5 Hallway
-                                    c(rep(0,4),1,0,1,rep(0,15),rep(1,5),0,1,1,0), # Column 6 Hallway
-                                    c(rep(0,3),1,0,1,0,1,rep(0,31-8)), # Column 7 Hallway
-                                    c(rep(0,3),1,1,0,1,rep(0,21-8),1,1,rep(0,31-22)), # Column 8 Hallway
-                                    rep(c(0,0,1,rep(0,31-3)),4), # columns 9-12
-                                    rep(c(1,rep(0,31-1)),4), # columns 13-16
-                                    rep(c(0,1,rep(0,31-2)),4), # columns 17-20
-                                    rep(c(rep(0,7),1,rep(0, 31-8)),2), # Columns 21 and 22
-                                    rep(c(rep(0,5),1,rep(0,31-6)),3), # columns 23-25
-                                    c(rep(0,4),1,1,rep(0,31-6)), # Column 26
-                                    c(rep(0,5),1,rep(0,21),1,rep(0,31-28)), # column 27
-                                    c(rep(0,26),1,rep(0,31-27)), # column 28
-                                    c(rep(0,5),1,rep(0,31-6)), # column 29 
-                                    c(rep(0,5),1,1,rep(0,31-7)), # column 30
-                                    c(1,rep(0,30)) # column 31 -- Outside
-),nrow=31, ncol = 31)
+church_adjacency_matrix <- matrix(c(c(0,rep(1,3),rep(0,8),rep(1,4),rep(0,30-16)), #column 1 - main area / Hallway
+                                    c(1,0,0,1,rep(0,12),rep(1,4),rep(0,30-20)), # column 2 - Hallway
+                                    c(1,0,0,1,rep(0,4),rep(1,4),rep(0,30-12)), # column 3 - Hallway
+                                    c(1,1,1,0,1,0,1,1,rep(0,30-8)), #column 4 Main room
+                                    c(rep(0,3),1,0,1,0,1,rep(0,17),1,rep(0, 30-26)), # # column 5 Hallway
+                                    c(rep(0,4),1,0,1,rep(0,15),rep(1,5),0,1,1), # Column 6 Hallway
+                                    c(rep(0,3),1,0,1,0,1,rep(0,30-8)), # Column 7 Hallway
+                                    c(rep(0,3),1,1,0,1,rep(0,21-8),1,1,rep(0,30-22)), # Column 8 Hallway
+                                    rep(c(0,0,1,rep(0,30-3)),4), # columns 9-12
+                                    rep(c(1,rep(0,30-1)),4), # columns 13-16
+                                    rep(c(0,1,rep(0,30-2)),4), # columns 17-20
+                                    rep(c(rep(0,7),1,rep(0, 30-8)),2), # Columns 21 and 22
+                                    rep(c(rep(0,5),1,rep(0,30-6)),3), # columns 23-25
+                                    c(rep(0,4),1,1,rep(0,30-6)), # Column 26
+                                    c(rep(0,5),1,rep(0,21),1,rep(0,30-28)), # column 27
+                                    c(rep(0,26),1,rep(0,30-27)), # column 28
+                                    c(rep(0,5),1,rep(0,30-6)), # column 29 
+                                    c(rep(0,5),1,1,rep(0,30-7))# column 30
+                                    
+),nrow=30, ncol = 30)
 church_graph<- graph_from_adjacency_matrix(church_adjacency_matrix, mode = "undirected")
 plot(church_graph)
 #church_adjacency_matrix
@@ -276,23 +290,23 @@ N_rooms <- ncol(adjacency_matrix_to_use) #number of rooms
 Church_C <- c(20, #column 1 - main area / Hallway
               5, # column 2 - Hallway
               5, # column 3 - Hallway
-              200, #column 4 Main room
+              362, #column 4 Main room
               5, # # column 5 Hallway
               7, # Column 6 Hallway - slightly bigger hallway
               5, # Column 7 Hallway
               5, # Column 8 Hallway
-              15, # comn 9
-              15, # column 10
-              15, #column 11
+              50, # Column 9 Large classroom
+              30, # column 10 classroom
+              30, #column 11 classroom
               2, # column 12 janitors closet
-              15, # column 13
+              30, # column 13 classroom
               5, # column 14 - bathroom
-              15, # column 15 
+              30, # column 15 classroom
               5, # column 16 - bathroom
-              15, # column 17
+              30, # column 17 classroom
               2, # column 18 - closet
-              15, # column 19
-              15, # column 20
+              30, # column 19 classroom
+              50, # column 20 large classroom
               2, # column 21 dressing room
               2, # column 22 dressing room
               4, # column 23 office
@@ -306,27 +320,28 @@ Church_C <- c(20, #column 1 - main area / Hallway
 ) # column 31 -- Outside
 
 
-Church_C <- c(Church_C,sum(Church_C))
 #outside should only be able to hold the total capacity of the building 
-Building_max <- Church_C[N_rooms] #last room in C is the "outside" room
+Building_max <- sum(Church_C) #last room in C is the "outside" room
 Max_capacity <- Prop_full*Building_max
 delt <- Max_capacity/community_pop # proportionality constant ( what proportion of individuals from the community are in the building of interest)
 
 Church_setup <- Bld_setup_func(Community_output = Community_output,day = day,delt = delt,N_rooms =N_rooms)
-church_graph <-church_graph %>% set_vertex_attr( "Infectious", value = Church_setup$I_x) %>% 
-  set_vertex_attr("Room", value = seq(1:N_rooms))# + 
-Church_Init_conds <-c(S=Church_setup$S_x, I = Church_setup$I_x, R = Church_setup$R_x, P = Church_setup$P_x)
+Church_Init_conds <-c(S=Church_setup$S, I = Church_setup$I, R = Church_setup$R, P = Church_setup$P, N_x =Church_setup$N_x)
 
-church_network <- ggplot(church_graph, aes(x = x, y = y, xend = xend, yend = yend))+
-  geom_edges(color = "grey75")+
-  geom_nodes(aes(size = Infectious), color = "#C21807")+
-  geom_nodetext_repel(aes(label=Room))+
-  theme_blank()+
-  scale_size(name = "Number of\nInfectious\npeople in\nrooms")+
-  labs(title = "Network representation of a church")+
-  theme(plot.title.position = "panel",
-        plot.title = element_text(hjust=1))
-church_network
+# church_graph <-church_graph %>% set_vertex_attr( "Infectious", value = Church_setup$I_x) %>% 
+#   set_vertex_attr("Room", value = seq(1:N_rooms))# + 
+# Church_Init_conds <-c(S=Church_setup$S_x, I = Church_setup$I_x, R = Church_setup$R_x, P = Church_setup$P_x)
+# 
+# church_network <- ggplot(church_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+#   geom_edges(color = "grey75")+
+#   geom_nodes(aes(size = Infectious), color = "#C21807")+
+#   geom_nodetext_repel(aes(label=Room))+
+#   theme_blank()+
+#   scale_size(name = "Number of\nInfectious\npeople in\nrooms")+
+#   labs(title = "Network representation of a church")+
+#   theme(plot.title.position = "panel",
+#         plot.title = element_text(hjust=1))
+# church_network
 # code to save figure
 #png(filename = "Church_network.png",units="in", width=6, height=4, res=300)
 #church_network
@@ -359,67 +374,79 @@ church_network
 # writeLines(church_latex_table, "church_table.tex")
 
 
-#Initialize Transition matrices, both people and particles
-Church_T_mov <- Create_Particle_T_Matrix(adjacency_matrix_to_use = adjacency_matrix_to_use,prop = 0.9)
+Church_T_mov <- Create_T_Matrix(adjacency_matrix_to_use = adjacency_matrix_to_use)
 #Church_T_mov <- adjacency_matrix_to_use*0.5
 
-
-Church_theta_mov <- Create_Particle_T_Matrix(adjacency_matrix_to_use = adjacency_matrix_to_use,prop = 0.5)
-
-Church_end_day_T_mov <- End_of_day_T_function(adjacency_matrix_to_use = adjacency_matrix_to_use)
-End_of_day_T_mov_to_use <- Church_end_day_T_mov
-
-Church_output <- data.frame(lsoda(y = Church_Init_conds, func = Particle_model,times = times, parms = parms,adjacency_matrix_to_use=adjacency_matrix_to_use,theta_mov =Church_theta_mov,T_mov = Church_T_mov,C =Church_C))
-
-clean_data <- Church_output %>% pivot_longer(cols = !time,
-                                             names_to = c("State", "Room"),
-                                             names_pattern = "([A-Za-z]+)(\\d+)",
-                                             values_to = "Number")
-clean_data %>% filter(State == "S") %>% 
-  group_by(State,Room)%>% 
-  ggplot( aes(x=time, y = Number, group =Room, color = Room))+
-  geom_line()+theme_classic()+
-  labs(x = "Time (hours)", y= "Number of Susceptible individuals")+ggtitle("Susceptible individuals across rooms")
-
-clean_data %>% filter(State == "I") %>% 
-  group_by(State,Room)%>% 
-  ggplot( aes(x=time, y = Number, group =Room, color = Room))+
-  geom_line()+theme_classic()+
-  labs(x = "Time (hours)", y= "Number of Infectious individuals")+ggtitle("Infectious individuals across rooms")
-clean_data %>% filter(State == "R") %>% 
-  group_by(State,Room)%>% 
-  ggplot( aes(x=time, y = Number, group =Room, color = Room))+
-  geom_line()+theme_classic()+
-  labs(x = "Time (hours)", y= "Number of Recovered individuals")+ggtitle("Recovered individuals across rooms")
-clean_data %>% filter(State == "P") %>% 
-  group_by(State,Room)%>% 
-  ggplot( aes(x=time, y = Number, group =Room, color = Room))+
-  geom_line()+theme_classic()+
-  labs(x = "Time (hours)", y= "Number of infectious particles")+ggtitle("Infectious particles in rooms within a building")
-
-clean_data %>% filter(State != "P") %>% 
-  group_by(time,Room)%>% summarise(total_room_pop=sum(Number)) %>% group_by(time) %>% summarise(tot_bld_pop =sum(total_room_pop)) %>% 
-  ggplot( aes(x=time, y = tot_bld_pop))+
-  geom_line()+theme_classic()+
-  labs(x = "Time (hours)", y= "Number of infectious particles")+ggtitle("Infectious particles in rooms within a building")
+Church_theta_mov <- Create_T_Matrix(adjacency_matrix_to_use = adjacency_matrix_to_use)
 
 
-#debugging_15 <- clean_data %>% filter(Room == 19 ) %>% filter(State == "P") 
 
-#ggplot(debugging_15, aes(x=time, y = Number, color = State))+geom_line()
+
+Church_output <- data.frame(lsoda(y = Church_Init_conds, func = Particle_model,times = times,
+                                  parms = parms,
+                                  adjacency_matrix_to_use=adjacency_matrix_to_use,
+                                  theta_mov =Church_theta_mov,
+                                  T_mov = Church_T_mov, 
+                                  C_x=Church_C))
 
 Church_data_clean <- Church_output%>% pivot_longer(cols = !time,
                                                    names_to = c("State", "Room"),
                                                    names_pattern = "([A-Za-z]+)(\\d+)",
                                                    values_to = "Number")
+Church_data_clean %>% filter(State == "S") %>% 
+  group_by(State,Room)%>% 
+  ggplot( aes(x=time, y = Number, group =Room, color = Room))+
+  geom_line()+theme_classic()+
+  labs(x = "Time (hours)", y= "Proportion of Susceptible individuals")+ggtitle("Proportion of Susceptible individuals across rooms")
+
+Church_data_clean %>% filter(State == "I") %>% 
+  group_by(State,Room)%>% 
+  ggplot( aes(x=time, y = Number, group =Room, color = Room))+
+  geom_line()+theme_classic()+
+  labs(x = "Time (hours)", y= "Proportion of Infectious individuals")+ggtitle("Proportion of Infectious individuals across rooms")
+Church_data_clean %>% filter(State == "R") %>% 
+  group_by(State,Room)%>% 
+  ggplot( aes(x=time, y = Number, group =Room, color = Room))+
+  geom_line()+theme_classic()+
+  labs(x = "Time (hours)", y= "Proportion of Recovered individuals")+ggtitle("Proportion of Recovered individuals across rooms")
+Church_data_clean %>% filter(State == "P") %>% 
+  group_by(State,Room)%>% 
+  ggplot( aes(x=time, y = Number, group =Room, color = Room))+
+  geom_line()+theme_classic()+
+  labs(x = "Time (hours)", y= "Number of infectious particles")+ggtitle("Infectious particles in rooms within a building")
+Church_data_clean %>% filter(State == "x") %>% 
+  group_by(State,Room)%>% 
+  ggplot( aes(x=time, y = Number, group =Room, color = Room))+
+  geom_line()+theme_classic()+
+  labs(x = "Time (hours)", y= "Number of individuals")+ggtitle("Number of individuals in rooms within a building")
+
+# Church_data_clean %>% filter(State != "P") %>% 
+#   group_by(time,Room)%>% summarise(total_room_pop=sum(Number)) %>% group_by(time) %>% summarise(tot_bld_pop =sum(total_room_pop)) %>% 
+#   ggplot( aes(x=time, y = tot_bld_pop))+
+#   geom_line()+theme_classic()+
+#   labs(x = "Time (hours)", y= "Number of people")+ggtitle("number of people in building")
+
+Church_data_clean %>% filter(State == "S"| State == "I" | State == "R") %>% ungroup() %>% group_by(time, Room) %>% summarise(Total_prop=sum(Number)) %>%
+  ggplot(aes(x=time, y=Total_prop, color=Room))+geom_line()+
+  labs(x = "Time (hours)", y= "Proportion of individuals")+ggtitle("Proportion of individuals in rooms within a building")
+
+Church_data_clean %>% filter(State == "S"| State == "I" | State == "R") %>% ungroup() %>% group_by(time) %>% summarise(Total_prop=sum(Number)) %>%
+  ggplot(aes(x=time, y=Total_prop))+geom_line()+
+  labs(x = "Time (hours)", y= "Proportion of individuals")+ggtitle("Proportion of individuals in the building")
+
+
+Church_data_clean %>% filter(State== "x")%>% ungroup() %>% group_by(time) %>% summarise(Total_pop=sum(Number)) %>%
+  ggplot(aes(x=time, y=Total_pop))+geom_line()+
+  labs(x = "Time (hours)", y= "Number of individuals")+ggtitle("Number of individuals in the building")
 
 Church_data_ratios <- Church_data_clean %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% group_by(time,Room)  %>% 
   mutate(N_x = S+I+R) %>% group_by(time,Room) %>% 
   mutate(K_x = ((parms$s)*I)/((parms$a)*N_x), prop_to_K = P/K_x)
 Church_P_x_K_x_plot<-ggplot(Church_data_ratios,aes(x =time, y =prop_to_K,group= Room,color=Room))+geom_line()+labs(title = "Church - Risk - 31 rooms")
-
-Church_P_x_plot <- ggplot(Church_data_ratios, aes(x=time, y = P, color = Room))+geom_line()+labs(title = "Church - Risk - 31 rooms")
 Church_P_x_K_x_plot
+Church_P_x_plot <- ggplot(Church_data_ratios, aes(x=time, y = P, color = Room))+geom_line()+labs(title = "Church - Risk - 31 rooms")
+Church_P_x_plot
+
 
 #### OLD figure making (church ) ####
 # 

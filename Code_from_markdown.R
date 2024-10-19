@@ -1,19 +1,9 @@
----
-title: "Risk_model_Code_and_description"
-author: "Courtney Schreiner"
-date: "2024-10-08"
-output: pdf_document
----
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
 ## Step by step for creating risk model code
 
-For this document I hope to go through my code for the risk model and double check that each piece does what it is supposed to do. The main document has functions first and then parameter declaration and then running the simulations. For this document I will go in order of the pieces needed, so I will start withe the community level model, then to adjacency matrix, transition, and then lastly all the code need to solve the system of equations
+#For this document I hope to go through my code for the risk model and double check that each piece does what it is supposed to do. The main document has functions first and then parameter declaration and then running the simulations. For this document I will go in order of the pieces needed, so I will start withe the community level model, then to adjacency matrix, transition, and then lastly all the code need to solve the system of equations
 
-```{r packages}
 
 library(deSolve)
 library(tidyverse)
@@ -27,11 +17,10 @@ library(pals)
 library(ggrepel)
 library(ggpubr)
 
-```
 
-  
-  **Community model parameters**
-```{r Community model parameters}
+
+##Community model parameters
+
 community_pop <- 100000 #pop size of the larger community
 init_conds <- c(S = community_pop-1, I = 1, R = 0) 
 print(init_conds)
@@ -41,9 +30,8 @@ times <- seq(from = 1, to = 144, by = 1)
 print(times)
 
 
-```
-**Community modelfunction/equations**
-```{r communtiy model function}
+
+#r communtiy model function
 SIR_community_model <- function(t, x, parms) {
   S <- x[1]
   I <- x[2]
@@ -58,12 +46,10 @@ SIR_community_model <- function(t, x, parms) {
     return(list(dt))
   })}
 
-```
 
+#Community model output**
+  
 
-**Community model output**
-
-```{r pressure, echo=FALSE}
 
 Community_output <- data.frame(lsoda(y = init_conds, func = SIR_community_model,times = times, parms=parms))
 
@@ -73,20 +59,20 @@ Community_output %>% pivot_longer(cols = !time) %>% arrange(desc(time))%>%
   theme_classic()+
   labs(x= "Time (days)", y = "Number of individuals")+ggtitle("Community outbreak of pathogen")
 
-```
 
-**Make building**
 
-```{r}
+#Make building**
+  
+
 
 small_bld_3_rooms <- matrix(c(c(0,1,1),
                               c(1,0,1),
                               c(1,1,0)),nrow = 3,ncol = 3)
 small_bld_5_rooms <- matrix(c(c(0,1,1,1,1),
-                                    c(1,0,1,1,0),
-                                    c(1,1,0,1,0),
-                                    c(1,1,1,0,0),
-                                    c(1,0,0,0,0)),nrow=5, ncol = 5)
+                              c(1,0,1,1,0),
+                              c(1,1,0,1,0),
+                              c(1,1,1,0,0),
+                              c(1,0,0,0,0)),nrow=5, ncol = 5)
 
 church_adjacency_matrix <- matrix(c(c(0,rep(1,3),rep(0,8),rep(1,4),rep(0,30-16)), #column 1 - main area / Hallway
                                     c(1,0,0,1,rep(0,12),rep(1,4),rep(0,30-20)), # column 2 - Hallway
@@ -116,8 +102,8 @@ church_graph<- graph_from_adjacency_matrix(church_adjacency_matrix, mode = "undi
 #take a look
 plot(church_graph)
 
-```
-```{r set carrying capacities}
+
+#r set carrying capacities
 graph_to_use <- small_bld_3_rooms
 adjacency_matrix_to_use <- church_adjacency_matrix 
 N_rooms <- ncol(adjacency_matrix_to_use) #number of rooms
@@ -160,89 +146,24 @@ Church_C <- c(20, #column 1 - main area / Hallway
               4 # column 30 office
 )
 
-length(Church_C)
-```
-Now that we have building defined by the adjacency matrix, we need to specify the conditions in the building
-```{r Building paramaters}
+
+#Now that we have building defined by the adjacency matrix, we need to specify the conditions in the building
+#r Building paramaters}
 Max_Building_Capacity <- sum(Church_C) 
 Prop_full <- 0.8 # how full do we want our building capacity to be
 Adj_Max_Building_Capacity <- round(Prop_full*Max_Building_Capacity,0) #Adjusted capacity - number of individuals that will be in the building such that building is at 'Prop_full' capacity
 delt <- Adj_Max_Building_Capacity/community_pop # proportionality constant ( what proportion of individuals from the community are in the building of interest)
 
-```
 
-Next, we need to put people in our building. These will be our initial conditions for the building level model.
 
-  
-```{r initialize building}
+#Next, we need to put people in our building. These will be our initial conditions for the building level model.
 
-day <- 31 #What day to extract results from the community level model
-N_rooms <- length(Church_C)
-Bld_setup_func <- function(Community_output,day, delt,N_rooms){
-  Building_ICs <- Community_output[day,] #Retrieves the number of S, I, and R individuals in the community at a particular day.
-  
-  #S_c + I_c + R_c = N_c | sum of the number of susceptible, infectious and recovered in the community is the total population of the community
-  # we want the proportion of S, I, and R in the community to match the proportion of S, I, and R in the building:
-  # (S_c + I_c + R_c)*delt = building_pop
-  # we set building_pop based on how full we want the building to be: this is our adjusted_building capacity set above
-  #i.e. Prop_Full*Building_Max_Capacity= Adjusted_building_capacity.
-  # then building_pop = Adjusted_building_capacity so that we can get our desired amount of individuals in the building. 
-  # and then we solve for delt above: delt = adjusted_building_pop/community_pop 
-  
-  Sb <- Community_output$S[day]*delt # number of susceptible in building
-  Ib <- Community_output$I[day]*delt # number of Infectious in building
-  Rb <- Community_output$R[day]*delt # number of Recovered in building
-  
-  #Sb, Ib, Rb are the number of Susceptible, Infected and Recovered individuals that will be in the building
-  
-  #initial conditions for each room. Randomly distribute individuals throughout rooms
-  
-  # first assign a random number between 0 and 1 for each room,
-  #broken up by S, I, and R
-  S_x <- c(runif(N_rooms, min = 0, max = 1))
-  I_x <- c(runif(N_rooms, min = 0, max = 1))
-  R_x <- c(runif(N_rooms, min = 0, max = 1))
-  
-  #normalize and then assign the correct number of S, I, and R based on Sb, Ib, and Rb
-  S_x <- ((S_x/sum(S_x))*Sb)
-  I_x <- ((I_x/sum(I_x))*Ib)
-  R_x <- ((R_x/sum(R_x))*Rb)
-  
-  
-  S_prop <- ((S_x/sum(S_x))*Sb)/(Sb+Ib+Rb)
-  I_prop <- ((I_x/sum(I_x))*Ib)/(Sb+Ib+Rb)
-  R_prop <- ((R_x/sum(R_x))*Rb)/(Sb+Ib+Rb)
-  
-  #this model is of the proportion of S, I and R in each room so now we need to switch from numbers to proportions.
-  # but we need to keep the total number of individuals in each room since that is in our model
-  Init_conds_nums <- data.frame(S_num = S_x, I_num = I_x, R_num = R_x)
-  Init_conds_nums <- Init_conds_nums %>% mutate(N_x = S_num + I_num + R_num)
-  Init_conds_props <- Init_conds_nums %>% 
-    mutate(S_prop = S_num/N_x, I_prop = I_num/N_x, R_prop = R_num/N_x)%>%
-    select(S_prop,I_prop,R_prop,N_x)
-  
-  # we start with no particles in the building
-  P_x <- c(rep(0,N_rooms))
-  
-  Init_conds_props <- Init_conds_props %>% mutate(S_prop = S_prop,I_prop =I_prop,R_prop= R_prop, P_x =P_x,N_x=N_x)
-  #Init_conds <-c(S=S_x/sum(Sb+Ib+Rb), I = I_x/sum(Sb+Ib+Rb), R = R_x/sum(Sb+Ib+Rb), P = P_x)
-  
-  return(data.frame(S=S_prop,I=I_prop,R=R_prop, P=P_x, N_x = S_x+I_x+R_x))
-}
 
-Church_setup <- Bld_setup_func(Community_output = Community_output,day = day,delt = delt,N_rooms =N_rooms)
-Church_setup
-r1_pop <-(Church_setup$S[1]+Church_setup$I[1]+Church_setup$R[1])*Adj_Max_Building_Capacity
-r2_pop <-(Church_setup$S[2]+Church_setup$I[2]+Church_setup$R[2])*Adj_Max_Building_Capacity
-r3_pop<- (Church_setup$S[3]+Church_setup$I[3]+Church_setup$R[3])*Adj_Max_Building_Capacity
-r1_pop+r2_pop+r3_pop
-
-```
-
-```{r Not over capacity setup}
+#r initialize building}
 
 day <- 31 #What day to extract results from the community level model
 N_rooms <- length(Church_C)
+
 Bld_setup_func_v2 <- function(Community_output,day, delt,N_rooms, C_x, N_total){
   Building_ICs <- Community_output[day,] #Retrieves the number of S, I, and R individuals in the community at a particular day.
   
@@ -291,7 +212,7 @@ Bld_setup_func_v2 <- function(Community_output,day, delt,N_rooms, C_x, N_total){
   S_x_prop <- S_x/N_total
   I_x_prop <- I_x/N_total
   R_x_prop <- R_x/N_total
-
+  
   # we start with no particles in the building
   P_x <- c(rep(0,N_rooms))
   
@@ -304,18 +225,17 @@ r1_pop <-(Church_setup$S[1]+Church_setup$I[1]+Church_setup$R[1])*Adj_Max_Buildin
 r2_pop <-(Church_setup$S[2]+Church_setup$I[2]+Church_setup$R[2])*Adj_Max_Building_Capacity
 r3_pop<- (Church_setup$S[3]+Church_setup$I[3]+Church_setup$R[3])*Adj_Max_Building_Capacity
 r1_pop+r2_pop+r3_pop
-```
 
 
-**Checking initial conditions**
-Now lets check that our building setup function did what I wanted it to. 
-Each room's proportion should sum to 1. And if we convert back to numbers using N_x the numbers should equal
-```{r props sum to 1}
+
+#Checking initial conditions**
+#   Now lets check that our building setup function did what I wanted it to. 
+# Each room's proportion should sum to 1. And if we convert back to numbers using N_x the numbers should equal
+
 #Church_setup %>% mutate(total_prop = S_prop+I_prop+R_prop)
-```
-props sum to 1 so that is good
 
-```{r props in building match community}
+
+#r props in building match community}
 #prop of susceptible in building
 sum(Church_setup$S)
 #prop of susceptible in community
@@ -332,20 +252,17 @@ sum(Church_setup$R)
 Community_output$R[day]/(Community_output$S[day]+Community_output$I[day]+Community_output$R[day])
 
 
-```
-Okay, great all of that checks out
+#Now people and particles need to move (Transition matrices)**
 
-**Now people and particles need to move (Transition matrices)**
 
-```{r}
 Create_T_Matrix <-function(adjacency_matrix_to_use){
   set.seed(123145) # <- easier for debugging
   T_mov <- data.frame(matrix(runif(N_rooms^2), nrow = N_rooms)) #populates a square matrix/dataframe with random numbers between 0 and 1 for the number of rooms that our building has.
   diag(T_mov) <- 0 #set diagonal to 0
   T_mov <- adjacency_matrix_to_use*T_mov #restrict the movement according to our network/adjacency matrix
   T_mov_norm <- t(apply(T_mov, 1, function(x) x / sum(x))) # normalize so that there aren't more people moving than what can (rows should sum to 1)
-  T_mov <-T_mov_norm
-  return(T_mov)
+T_mov <-T_mov_norm
+return(T_mov)
 }
 
 Church_T_mov <- Create_T_Matrix(adjacency_matrix_to_use = adjacency_matrix_to_use)
@@ -366,23 +283,21 @@ r3_change <- r3_in - r3_out
 # We can use the same function for the particle matrix
 Church_theta_mov <- Create_T_Matrix(adjacency_matrix_to_use = adjacency_matrix_to_use)
 
-```
-
-**Now set parameters for the model**
-
-
-```{r parameters}
+#Now set parameters for the model**
+  
+  
+#r parameters}
 parms <-data.frame(s=100,a=5, d=3,lam = 1)
 # s = shedding, a = absorption, d = decay, lam = scalar for room capacities
-N_b <- Adj_Max_Building_Capacity #Building population size
+#N_b <- Adj_Max_Building_Capacity #Building population size
 Maxtime <- 24*3
 times <- seq(from = 0, to = Maxtime, by = 0.2)
 m <- 4 # number of equations per room
-```
 
-For the model we are going to have to sum over some of the vectors/matrices so we will put those steps in functions. This is needed for the movement of individuals and particles. Particles and people will have to have a different function because there re capacities on rooms for people but not particles.
 
-```{r movement functions}
+#For the model we are going to have to sum over some of the vectors/matrices so we will put those steps in functions. This is needed for the movement of individuals and particles. Particles and people will have to have a different function because there re capacities on rooms for people but not particles.
+
+#r movement functions}
 
 flux_in_people <- function(N_rooms, Transition_matrix,State,Room_pops,Carrying_capacity,t){
   # Transition_matrix <- matrix(c(0,0.5,1,0.7,0,0,0.3,0.5,0), nrow = 3,ncol = 3)
@@ -442,60 +357,27 @@ flux_out_particles <- function(N_rooms, Transition_matrix,State){
   return(test)
 }
 
-```
 
+#Function for the whole model**
 
-**Function for the whole model**
-```{r function for model}
-Particle_model_v1 <- function(t, x, parms,T_mov, theta_mov, adjacency_matrix_to_use,C_x,N_b){
-  ncompartment <- 4
-  n_rooms <- length(x)/ncompartment
-  S <- as.matrix(x[1:n_rooms])
-  I <- as.matrix(x[(n_rooms+1):(2*n_rooms)])
-  R <- as.matrix(x[(2*n_rooms+1):(3*n_rooms)])
-  P <- as.matrix(x[(3*n_rooms+1):(4*n_rooms)])
- 
-
-  with(parms,{
-  
-    
-    dS <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=S,Room_pops = (S+I+R)*N_b,Carrying_capacity = C_x)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=S,Room_pops = (S+I+R)*N_b,Carrying_capacity = C_x))
-    
-    dI <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=I,Room_pops = (S+I+R)*N_b,Carrying_capacity = C_x)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=I,Room_pops = (S+I+R)*N_b,Carrying_capacity = C_x))
-    
-    dR <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=R,Room_pops = (S+I+R)*N_b,Carrying_capacity = C_x)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=R,Room_pops = (S+I+R)*N_b,Carrying_capacity = C_x))
-    #last step will be the particle EQ
-    
-    dP <- s*as.matrix(I)*as.matrix((S+I+R)*N_b) - as.matrix(a*P/(lam*C_x*((S+I+R)*N_b)))-d*as.matrix(P) + as.matrix(as.matrix(flux_in_particles(N_rooms, theta_mov,State = P)) - as.matrix(flux_out_particles(N_rooms, theta_mov,State = P)))
-    
-    # dN_x <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=N_x,Room_pops = N_x,Carrying_capacity = C_x)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=N_x,Room_pops = N_x,Carrying_capacity = C_x))
-    # 
-    dt <- c(dS,dI,dR,dP)
-    return(list(dt))})
-  
-}
-```
-
-Checking what the model should do based on the initial conditions and stepping through manually
-```{r sanity check}
 Particle_model_v2 <- function(t, x, parms,T_mov, theta_mov, adjacency_matrix_to_use,C_x,N_b){
-
-# x <- Church_Init_conds
-# T_mov <- Church_T_mov
-# 
-# theta_mov <- Church_theta_mov
-# adjacency_matrix_to_use <- small_bld_3_rooms
-# C_x <- small_bld_3_rooms_C
-# N_b <- N_b
- ncompartment <- 5
+  
+  # x <- Church_Init_conds
+  # T_mov <- Church_T_mov
+  # 
+  # theta_mov <- Church_theta_mov
+  # adjacency_matrix_to_use <- small_bld_3_rooms
+  # C_x <- small_bld_3_rooms_C
+  # N_b <- N_b
+  ncompartment <- 5
   n_rooms <- length(x)/ncompartment
   S <- as.matrix(x[1:n_rooms])
   I <- as.matrix(x[(n_rooms+1):(2*n_rooms)])
   R <- as.matrix(x[(2*n_rooms+1):(3*n_rooms)])
   P <- as.matrix(x[(3*n_rooms+1):(4*n_rooms)])
   N_x <- as.matrix(x[(4*n_rooms+1):(5*n_rooms)])
-
-
+  
+  
   with(parms,{
     
     dS <- as.matrix((flux_in_people(N_rooms, Transition_matrix =T_mov, State=S,Room_pops = (S+I+R)*N_x,Carrying_capacity = C_x)) - flux_out_people(N_rooms, Transition_matrix = T_mov, State=S,Room_pops = (S+I+R)*N_x,Carrying_capacity = C_x))
@@ -519,7 +401,7 @@ Particle_model_v2 <- function(t, x, parms,T_mov, theta_mov, adjacency_matrix_to_
     # 
     dt <- c(dS,dI,dR,dP,dN_x)
     
-      return(list(dt))})
+    return(list(dt))})
   
 }
 ```
@@ -532,26 +414,26 @@ Church_Init_conds_v1 <-c(S=Church_setup$S, I = Church_setup$I, R = Church_setup$
 Church_Init_conds_v2 <-c(S=Church_setup$S, I = Church_setup$I, R = Church_setup$R, P = Church_setup$P,N_x =Church_setup$N_x)
 
 Church_output_v1 <- data.frame(lsoda(y = Church_Init_conds_v1, func = Particle_model_v1,times = times,
-                                  parms = parms,
-                                  adjacency_matrix_to_use=church_adjacency_matrix,
-                                  theta_mov =Church_theta_mov,
-                                  T_mov = Church_T_mov, 
-                                  C_x=Church_C,N_b = N_b))
+                                     parms = parms,
+                                     adjacency_matrix_to_use=church_adjacency_matrix,
+                                     theta_mov =Church_theta_mov,
+                                     T_mov = Church_T_mov, 
+                                     C_x=Church_C,N_b = N_b))
 Church_output_v2 <- data.frame(lsoda(y = Church_Init_conds_v2, func = Particle_model_v2,times = times,
-                                  parms = parms,
-                                  adjacency_matrix_to_use=church_adjacency_matrix,
-                                  theta_mov =Church_theta_mov,
-                                  T_mov = Church_T_mov, 
-                                  C_x=Church_C,N_b = Adj_Max_Building_Capacity))
+                                     parms = parms,
+                                     adjacency_matrix_to_use=church_adjacency_matrix,
+                                     theta_mov =Church_theta_mov,
+                                     T_mov = Church_T_mov, 
+                                     C_x=Church_C,N_b = Adj_Max_Building_Capacity))
 
 ```
 
 
 ```{r}
 Church_data_clean <- Church_output_v1%>% pivot_longer(cols = !time,
-                                                   names_to = c("State", "Room"),
-                                                   names_pattern = "([A-Za-z]+)(\\d+)",
-                                                   values_to = "Number")
+                                                      names_to = c("State", "Room"),
+                                                      names_pattern = "([A-Za-z]+)(\\d+)",
+                                                      values_to = "Number")
 
 # Church_data_ratios <- Church_data_clean %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% group_by(time,Room)  %>% 
 #   mutate(N_x = S+I+R) %>% group_by(time,Room) %>% 
@@ -611,9 +493,9 @@ p8_v1 <- Church_data_clean %>% filter(State == "S"| State == "I" | State == "R")
 
 ```{r}
 Church_data_clean <- Church_output_v2%>% pivot_longer(cols = !time,
-                                                   names_to = c("State", "Room"),
-                                                   names_pattern = "([A-Za-z]+)(\\d+)",
-                                                   values_to = "Number")
+                                                      names_to = c("State", "Room"),
+                                                      names_pattern = "([A-Za-z]+)(\\d+)",
+                                                      values_to = "Number")
 
 # Church_data_ratios <- Church_data_clean %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% group_by(time,Room)  %>% 
 #   mutate(N_x = S+I+R) %>% group_by(time,Room) %>% 
@@ -683,7 +565,7 @@ ggarrange(p6_v1,p6_v2,ncol = 2)
 ggarrange(p7_v1,p7_v2,ncol = 2)
 ggarrange(p8_v1,p8_v2,ncol = 2)
 
-```
+
 
 
 
