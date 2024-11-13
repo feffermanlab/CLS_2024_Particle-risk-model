@@ -283,7 +283,7 @@ Small_bld_theta_mov <- Create_T_Matrix(adjacency_matrix_to_use = small_bld_3_roo
   
   
   #{r parameters}
-parms <-data.frame(s=100,a=5, d=3,lam = 1)
+parms <-data.frame(s=100,a=5, d=3,bet_bar = 1, bet_hat =10000000)
 # s = shedding, a = absorption, d = decay, lam = scalar for room capacities
 #N_b <- Adj_Max_Building_Capacity #Building population size
 Maxtime <- 24*3
@@ -376,9 +376,9 @@ Particle_model_v3 <- function(t, x, parms,T_mov, theta_mov, adjacency_matrix_to_
     
     dN_x <- as.matrix((flux_in_people(N_rooms=N_rooms, Transition_matrix =T_mov, State=N_x,Room_pops = N_x,Carrying_capacity = C_x)) - flux_out_people(N_rooms=N_rooms, Transition_matrix = T_mov, State=N_x,Room_pops = N_x,Carrying_capacity = C_x))
     
-    dP <- s*Ib_prop*as.matrix(N_x) - as.matrix(a*P/(lam*C_x*as.matrix(N_x)))-d*as.matrix(P) + as.matrix(as.matrix(flux_in_particles(N_rooms=N_rooms, theta_mov,State = P)) - as.matrix(flux_out_particles(N_rooms=N_rooms, theta_mov,State = P)))
+    dP <- s*Ib_prop*as.matrix(N_x) - as.matrix(a*as.matrix(N_x)*as.matrix(P)*(1/(C_x*bet_bar))*(as.matrix(P)/bet_hat))-d*as.matrix(P) + as.matrix(as.matrix(flux_in_particles(N_rooms=N_rooms, theta_mov,State = P)) - as.matrix(flux_out_particles(N_rooms=N_rooms, theta_mov,State = P)))
     
-    # 
+    
     dt <- c(dN_x,dP)
     
     return(list(dt))})
@@ -418,13 +418,13 @@ data_clean %>% filter(State == "P") %>%
   group_by(State,Room)%>% 
   ggplot( aes(x=time, y = Number, group =Room, color = Room))+
   geom_line()+theme_classic()+
-  labs(x = "Time (hours)", y= "Proportion of Susceptible individuals")+ggtitle("Proportion of Susceptible individuals across rooms")
+  labs(x = "Time (hours)", y= "Number")+ggtitle("Number of infectious particles")
 
 data_clean %>% filter(State == "N_x") %>% 
   group_by(State,Room)%>% 
   ggplot( aes(x=time, y = Number, group =Room, color = Room))+
   geom_line()+theme_classic()+
-  labs(x = "Time (hours)", y= "Proportion of Infectious individuals")+ggtitle("Proportion of Infectious individuals across rooms")
+  labs(x = "Time (hours)", y= "Number")+ggtitle("Number of people")
 
 data_clean %>% filter(State == "N_x") %>% ungroup() %>% group_by(time) %>% summarise(Total_prop=sum(Number))%>%
   ggplot(aes(x=time, y=Total_prop))+geom_line()+
@@ -434,8 +434,10 @@ temp_C_x <- data.frame(Room = as.character(seq(1:length(small_bld_3_rooms_C))),C
 temp_data <- left_join(temp,temp_C_x, by = "Room")
 
 ratio_data <- temp_data %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
-  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,lam = parms$lam, Ib_prop = Small_bld_setup$Ib_prop[1],Numerator = s*N_x*Ib_prop*C_x*lam , Denominator =(a*P), ratio = Numerator/Denominator ) 
-
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Small_bld_setup$Ib_prop[1],Numerator = s*N_x*Ib_prop*(C_x*bet_bar)*bet_hat , Denominator =(a*N_x*P*(P)), ratio = Numerator/Denominator ) 
+#temp_data %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+#+   group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Small_bld_setup$Ib_prop[1],shed = s*N_x*Ib_prop*C_x*bet_bar , Denominator =(a*P), ratio = shed/Denominator ) 
+#> #(parms$s*N_x*Small_bld_setup$Ib_prop[1]*N_x*small_bld_3_rooms_C[Room]*parms$lam)
 #(parms$s*N_x*Small_bld_setup$Ib_prop[1]*N_x*small_bld_3_rooms_C[Room]*parms$lam)
 ggplot(ratio_data, aes(x = time, y = ratio, color = Room))+geom_line()
 #
