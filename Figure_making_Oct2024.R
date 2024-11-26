@@ -28,29 +28,29 @@ church_adjacency_matrix <- matrix(c(c(0,rep(1,3),rep(0,8),rep(1,4),rep(0,30-16))
 
 
 
-Office_adjacency_matrix <- matrix(c(c(0,1,rep(0,4),1,0,1,rep(0,36-9)), # Hallway 1
-                                    c(1,0,1,rep(0,32),1), # Hallway 2
-                                    c(0,1,0,1,rep(0,5),1,1,1,rep(0,36-12)), # Hallway/room 3
-                                    c(0,0,1,rep(0,6),rep(1,9),0,0,rep(1,3),rep(0,36-23)), # Hallway 4
-                                    c(rep(0,3),1,0,1,1,rep(0,13),rep(1,5),rep(0,36-25)), # Hallway 5
-                                    c(rep(0,4),1,0,1,1, rep(0,17),rep(1,4), rep(0,36-29)), # Hallway 6
-                                    c(1,rep(0,3),1,1,0,rep(0,36-7)), # Hallway/room 7
-                                    c(rep(0,5),1,rep(0,22),rep(1,3),rep(0,36-31)), # Hallway 8
-                                    c(1,rep(0,30),1,1,1,1,0), # Hallway 9
-                                    rep(c(0,0,1,1,rep(0,36-4)),3), # Rooms 10-12
-                                    rep(c(0,0,0,1,rep(0,36-4)),5), # Rooms 13-17
-                                    c(0,0,0,1,rep(0,14),1,1,rep(0,36-20)), # Room 18
-                                    rep(c(rep(0,17),1,rep(0,36-18)),2), # Rooms 19 and 20
-                                    rep(c(rep(0,3),1,1,rep(0,36-5)),3), # Rooms 21-23
-                                    rep(c(rep(0,4),1,rep(0,36-5)),2), # Rooms 24 and 25
-                                    rep(c(rep(0,5),1,rep(0,36-6)),3), # Rooms 26-28
-                                    c(rep(0,5),1,0,1,rep(0,36-8)), # Room 29
-                                    rep(c(rep(0,7),1,rep(0,36-8)),2), # Rooms 30 and 31
-                                    rep(c(rep(0,8),1,rep(0,36-9)),3), # Rooms 32-34
-                                    c(rep(0,8),1,rep(0,36-9)), # Room 35
-                                    c(0,1,rep(0,34)) # Room 36
+
+Office_adjacency_matrix <- matrix(c(c(0,1,rep(0,4),1,0,1,rep(0,34-9)), # Hallway 1
+                                    c(1,0,1,rep(0,31)), # Hallway 2
+                                    c(0,1,0,1,rep(0,5),1,1,1,rep(0,34-12)), # Hallway/room 3
+                                    c(0,0,1,rep(0,6),rep(1,9),0,0,rep(1,3),rep(0,34-23)), # Hallway 4
+                                    c(rep(0,3),1,0,1,1,rep(0,13),rep(1,5),rep(0,34-25)), # Hallway 5
+                                    c(rep(0,4),1,0,1,1, rep(0,17),rep(1,4), rep(0,34-29)), # Hallway 6
+                                    c(1,rep(0,3),1,1,0,rep(0,34-7)), # Hallway/room 7
+                                    c(rep(0,5),1,rep(0,22),rep(1,3),rep(0,34-31)), # Hallway 8
+                                    c(1,rep(0,30),1,1,1), # Hallway 9
+                                    rep(c(0,0,1,1,rep(0,34-4)),3), # Rooms 10-12
+                                    rep(c(0,0,0,1,rep(0,34-4)),5), # Rooms 13-17
+                                    c(0,0,0,1,rep(0,14),1,1,rep(0,34-20)), # Room 18
+                                    rep(c(rep(0,17),1,rep(0,34-18)),2), # Rooms 19 and 20
+                                    rep(c(rep(0,3),1,1,rep(0,34-5)),3), # Rooms 21-23
+                                    rep(c(rep(0,4),1,rep(0,34-5)),2), # Rooms 24 and 25
+                                    rep(c(rep(0,5),1,rep(0,34-6)),3), # Rooms 26-28
+                                    c(rep(0,5),1,0,1,rep(0,34-8)), # Room 29
+                                    rep(c(rep(0,7),1,rep(0,34-8)),2), # Rooms 30 and 31
+                                    rep(c(rep(0,8),1,rep(0,34-9)),3) # Rooms 32-34
+                                    
 ),
-nrow=36,ncol = 36)
+nrow=34,ncol = 34)
 
 Movie_adjacency_matrix <- matrix(c(c(0,1,1,rep(0,5),1,rep(0,5),1,0,1,rep(0,34-17)), # Room 1 hallway
                                    c(1,0,1,1,1,rep(0,6),rep(1,3),rep(0,3),rep(1,5),0,rep(1,4),rep(0,34-27)), # Room 2 - Hallway
@@ -86,7 +86,7 @@ Movie_adjacency_matrix <- matrix(c(c(0,1,1,rep(0,5),1,rep(0,5),1,0,1,rep(0,34-17
 
 nrow = 34,ncol = 34)
 
-movie_theater_graph<- graph_from_adjacency_matrix(movie_adjacency_matrix, mode = "undirected")
+movie_theater_graph<- graph_from_adjacency_matrix(Movie_adjacency_matrix, mode = "undirected")
 
 University_adjacency_matrix<- matrix(c(rep(c(rep(0,34),1,rep(0,223-35)),6),#Basement floor -rooms 1-6
                                        rep(c(rep(0,35),1,rep(0,223-36)),4), #rooms 7-10
@@ -255,7 +255,10 @@ University_adjacency_matrix<- matrix(c(rep(c(rep(0,34),1,rep(0,223-35)),6),#Base
                                        
 ),nrow = 223,ncol = 223)
 
-
+diag(church_adjacency_matrix) <- 1
+diag(Office_adjacency_matrix) <- 1
+diag(Movie_adjacency_matrix) <- 1
+diag(University_adjacency_matrix) <- 1
 #### Building carrying capacities ####
 #r set carrying capacities
 # Church_C<- c(200, #column 1 - main area / Hallway
@@ -265,211 +268,246 @@ University_adjacency_matrix<- matrix(c(rep(c(rep(0,34),1,rep(0,223-35)),6),#Base
 #        200
 # ) 
 small_bld_3_rooms_C <- c(100,200,300)
-Church_C <- c(20, #column 1 - main area / Hallway
-              5, # column 2 - Hallway
-              5, # column 3 - Hallway
+Church_C <- c(161, #column 1 - main area / Hallway
+              161, # column 2 - Hallway
+              161, # column 3 - Hallway
               362, #column 4 Main room
               5, # # column 5 Hallway
               7, # Column 6 Hallway - slightly bigger hallway
               5, # Column 7 Hallway
               5, # Column 8 Hallway
-              50, # Column 9 Large classroom
-              30, # column 10 classroom
-              30, #column 11 classroom
-              2, # column 12 janitors closet
-              30, # column 13 classroom
-              5, # column 14 - bathroom
-              30, # column 15 classroom
-              5, # column 16 - bathroom
-              30, # column 17 classroom
-              2, # column 18 - closet
-              30, # column 19 classroom
-              50, # column 20 large classroom
-              2, # column 21 dressing room
-              2, # column 22 dressing room
-              4, # column 23 office
-              4, # column 24 office
-              4, # column 25 office
-              4, # column 26 office
-              5, # column 27 office - large
-              2, # column 28 small bathroom
-              4, # column 29 office
-              4 # column 30 office
+              24, # Column 9 Large classroom
+              7.7, # column 10 classroom
+              7.7, #column 11 classroom
+              1, # column 12 janitors closet
+              11.8, # column 13 classroom
+              3, # column 14 - bathroom
+              11.8, # column 15 classroom
+              3, # column 16 - bathroom
+              7.7, # column 17 classroom
+              1, # column 18 - closet
+              7.7, # column 19 classroom
+              23.75, # column 20 large classroom
+              1, # column 21 dressing room
+              1, # column 22 dressing room
+              1, # column 23 office
+              1, # column 24 office
+              1, # column 25 office
+              1, # column 26 office
+              2, # column 27 office - large
+              1, # column 28 small bathroom
+              1, # column 29 office
+              1 # column 30 office
 )
 
 Office_C <- c(
-  200,# room 1 - Hallway/lobby
-  200,# room 2 - Hallway/lobby
-  30, # room 3 - Large Common room
-  20,# room 4 - Hallway 
-  20,# room 5 - Hallway
-  20,# room 6 - Hallway
-  2,# room 7 - Intermediate room
-  10,# room 8 - Hallway- small
-  10,# room 9 - Hallway to restrooms and stairway
-  30,# room 10 - Conference room - large
+  45,# room 1 - Hallway/lobby
+  46,# room 2 - Hallway/lobby
+  46, # room 3 - Large Common room
+  41,# room 4 - Hallway 
+  27,# room 5 - Hallway
+  18,# room 6 - Hallway
+  45,# room 7 - Intermediate room
+  9,# room 8 - Hallway- small
+  9,# room 9 - Hallway to restrooms and stairway
+  10,# room 10 - Conference room - large
   2,# room 11 - Storage room
-  30,# room 12 - Conference room - large
+  8,# room 12 - Conference room - large
   3,# room 13 - Office room
-  10,# room 14 - Conference room - small
+  6,# room 14 - Conference room - small
   3,# room 15 - Office room 
   3,# room 16 - Office room
-  4,# room 17 - Kitchenette
-  20,# room 18 - Large communal Office space
+  2,# room 17 - Kitchenette
+  5,# room 18 - Large communal Office space
   3,# room 19 - small communal Office space
-  2,# room 20 - Storage room
+  1,# room 20 - Storage room
   rep(3,11), # rooms 21-31 - Offices
-  5, # room 32 - Restroom
-  5, # room 33 - Restroom
-  2, # room 34 - Storage room
-  20, # room 35 - Stairs
-  10 # room 36 - Elevators
-)
-
-Movie_C <- c(
-  400, # Room 1 hallway
-  300, # Room 2 - Hallway
-  100, # Room 3 - Hallway 
-  100, # Room 4 - Hallway
-  100, # Room 5 - Hallway
-  100, # Room 6 - Hallway 
-  100, # Room 7 - Hallway 
-  100, # Room 8 - Hallway
-  500, # Room 9 main room
-  6, # Room 10 Admin
-  4, # Room 11 - admin
-  3, # Room 12 - facilities management
-  3, # Room 13 - facilities management
-  25, # Room 14 - Kitchen
-  100, # Room 15 - Theater
-  3, # Room 16 - Storage room
-  100, # Room 17 - Theater
-  30, # Room 18 - restroom
-  100, # Room 19 - Theater
-  30, # Room 20 - restroom
-  2, # Room 21 - family bathroom
-  3, # Room 22 - cleaning
-  3, # Room 23 - cleaning
-  100, # Room 24 - Theater
-  3, # Room 25 - facilities
-  100, # Room 26 - Theater
-  100, # Room 27 - Theater
-  100, # Room 28 - Theater
-  3, # Room 29 Facilities
-  3, # Room 30 - storage
-  100, # Room 31 - Theater
-  3, # Room 32 - maintenance
-  10, # Room 33 - Employee room
-  2 # Room 34 - employee bathroom
+  4, # room 32 - Restroom
+  4, # room 33 - Restroom
+  1 # room 34 - Storage room
   
 )
 
-University_C <- c(rep(3,5),# rooms 1-5 storage / facilities
-                  100, # room 6 research lab
-                  rep(4,4), # rooms 7-10 offices
-                  100, # room 11 - building services / equipment
-                  3, # room 12 - storage
-                  rep(100,4), # rooms 13-16 research labs
-                  rep(20,5), # rooms 17-21 research lab storage
-                  3, # room 22 storage
-                  40, # room 23 lab space
-                  3, # room 24 storage
-                  rep(3,3), # rooms 25-27 - facilities
-                  rep(25,2), # rooms 28 and 29 - bathrooms
-                  rep(3,2), # rooms 30 and 31 - bathroom storage
-                  200, # room 32 large unused space
-                  3, # room 33 facilities
+Movie_C <- c(
+  303, # Room 1 hallway
+  200, # Room 2 - Hallway
+  100, # Room 3 - Hallway 
+  71, # Room 4 - Hallway
+  13, # Room 5 - Hallway
+  13, # Room 6 - Hallway 
+  103, # Room 7 - Hallway 
+  173, # Room 8 - Hallway
+  68, # Room 9 main room
+  3, # Room 10 Admin
+  1, # Room 11 - admin
+  2, # Room 12 - facilities management
+  1, # Room 13 - facilities management
+  10, # Room 14 - Kitchen
+  100, # Room 15 - Theater
+  2, # Room 16 - Storage room
+  102, # Room 17 - Theater
+  12, # Room 18 - restroom
+  127, # Room 19 - Theater
+  12, # Room 20 - restroom
+  1, # Room 21 - family bathroom
+  1, # Room 22 - cleaning
+  1, # Room 23 - cleaning
+  127, # Room 24 - Theater
+  1, # Room 25 - facilities
+  49, # Room 26 - Theater
+  49, # Room 27 - Theater
+  73, # Room 28 - Theater
+  1, # Room 29 Facilities
+  2, # Room 30 - storage
+  63, # Room 31 - Theater
+  2, # Room 32 - maintenance
+  12, # Room 33 - Employee room
+  1 # Room 34 - employee bathroom
+  
+)
+
+University_C <- c(rep(1,5),# rooms 1-5 storage / facilities
+                  12, # room 6 research lab
+                  rep(3,4), # rooms 7-10 offices
+                  10, # room 11 - building services / equipment
+                  1, # room 12 - storage
+                  rep(4,4), # rooms 13-16 research labs
+                  rep(1,5), # rooms 17-21 research lab storage
+                  1, # room 22 storage
+                  2, # room 23 lab storage
+                  1, # room 24 storage
+                  1, # room 25 storage - facilities
+                  2, # room 26 facilities
+                  2, # room 27 facilities
+                  rep(4,2), # rooms 28 and 29 - bathrooms
+                  rep(1,2), # rooms 30 and 31 - bathroom storage
+                  10, # room 32 large unused space - wharehouse?
+                  2, # room 33 facilities
                   10, # room 34 - large facilities
-                  rep(100,2), # rooms 35-36 - hallways
-                  50, # room 37 - small hallway outside elevator
-                  rep(100,5), # rooms 38-42 hallways
-                  50, # room 43 - small hallway by stairs
-                  100, # room 44 stair
-                  10, # room 45 elevator
-                  10, # room 46 elevator
-                  100, # room 47 stair
-                  3, # room 48 storage
-                  40, # room 49 Teaching lab small room
-                  100, # room 50 connecting room to offices/ small common room
-                  10, # room 51 storage - teaching lab
-                  100, # room 52 Entryway
-                  3, # room 53 Building services (elevator?)
-                  rep(4,7), # rooms 54-60 offices
-                  25, # room 61 - small teaching lab
-                  50, # room 62 large teaching lab
-                  25, # room 63 small teaching lab
-                  50, # room 64 large teaching lab
-                  35, # room 65 medium teaching lab
-                  rep(5,2), # rooms 66 and 67 teaching lab storage
-                  rep(60,2), # rooms 68 and 69 large teaching rooms
-                  rep(3,3), # rooms 70-72 storage/ building services
-                  rep(8,2), # rooms 73 and 74 - bathrooms
-                  3, # room 75 storage
-                  rep(30,4), # rooms 76-79 small classrooms
-                  200, # room 80 large lecture hall
-                  rep(20,4), # rooms 81-84
-                  10, # room 85 smaller hallway to teaching labs
-                  rep(20,4), # rooms 86-89
-                  10, # room 90 small hallway to storage rooms
-                  200, # room 91 hallway with common area 
-                  20, # room 92 hallway
-                  48, # room 93 - stair way
-                  3, # room 94 storage
-                  4, # room 95 office
-                  rep(10,9), # rooms 96-104 offices
+                  51, # rooms 35 hallway
+                  27,# room 36 hallway
+                  15, # room 37 - small hallway outside elevator
+                  12, # rooms 38-42 hallways
+                  37,# room 39
+                  17,# room 40
+                  29,# room 41
+                  49,# room 42
+                  63, # room 43 - small hallway by stairs
+                  50, # room 44 stair
+                  8, # room 45 elevator
+                  8, # room 46 elevator
+                  50, # room 47 stair
+                  1, # room 48 storage
+                  4, # room 49 Teaching lab small room
+                  1, # room 50 connecting room to offices/ small common room
+                  2, # room 51 storage - teaching lab
+                  80, # room 52 Entryway
+                  2, # room 53 Building services (elevator?)
+                  rep(1,7), # rooms 54-60 offices
+                  30, # room 61 - small teaching lab
+                  30, # room 62 large teaching lab
+                  4, # room 63 small teaching lab
+                  30, # room 64 large teaching lab
+                  30, # room 65 medium teaching lab
+                  2, # room 66 storage
+                  4, # room 67 storage
+                  50, # room 68 
+                  18, # room 69
+                  rep(1,3), # rooms 70-72 storage/ building services
+                  rep(4,2), # rooms 73 and 74 - bathrooms
+                  1, # room 75 storage
+                  rep(1,4), # rooms 76-79 small classrooms -- update -- i think they are offices
+                  225, # room 80 large lecture hall
+                  58,# room 81 - hallway
+                  70,# room 82 - hallway
+                  7,# room 83 - hallway
+                  115,# room 84 - hallway
+                  81, # room 85 smaller hallway to teaching labs
+                  171,# room 86 
+                  131,# room 87
+                  225,# room 88
+                  8,# room 89
+                  3, # room 90 small hallway to storage rooms
+                  226, # room 91 hallway with common area 
+                  115, # room 92 hallway
+                  50, # room 93 - stair way
+                  1, # room 94 storage
+                  1, # room 95 office
+                  rep(1,9), # rooms 96-104 offices
                   rep(30,2), # rooms 105 and 106 small classroom
-                  10, # room 107 small research room
-                  100, # room 108 research lab
-                  75, # room 109 research lab / desks
-                  rep(10,6), # rooms 110-115 research storage / side rooms
-                  rep(3,2), # rooms 116 and 117 - small storage 
-                  rep(5,3), # rooms 118-120 facilities
-                  100, # rooms 121 large research lab
-                  rep(50,2), # rooms 122 and 123 small research labs
-                  rep(20,2), # rooms 124 and 125 research storage rooms
-                  rep(4,7), # rooms 126-132 offices
-                  rep(8,2), # rooms 133 and 134 bathrooms
-                  75, # room 135 small common area
-                  rep(4,3), # rooms 136-138 small offices
-                  50, # room 139 large conference room
-                  3, # room 140 facilities
-                  20, # rooms 141 hallway
-                  50, # room 142 hallway
-                  20, # room 143 hallway
-                  50, # room 144 hallway
-                  rep(20,5), # rooms 145-149 hallways 
-                  rep(75,3), # rooms 150-152 hallways
-                  200, # room 153 hallway with common area
-                  50, # room 154
-                  20, # room 155
-                  3, # room 156 facilities
-                  rep(4,10), # room 157-166 offices
-                  100, # room 167 large conference room
-                  10, # room 168 research lab storage
-                  100, # room 169 large research lab
-                  75, # room 170 research desk/lab space
-                  rep(50,7 ), # room 171 - 177 research storage 
-                  100, # room 178 large research lab
-                  rep(100,2), # room 179 and 180 classroom
-                  rep(10,6), # rooms 181 - 186 storage rooms
-                  rep(4,7), # rooms 187 - 193 offices
-                  rep(20, 2), # rooms 194 and 195 bathrooms
-                  4, # room 196 office
-                  50, # room 197 admin open space
-                  4, # room 198 office
-                  50, # room 199 admin open space
-                  rep(4,7), # room 200 - 206 office space
-                  3, # room 207 storage
-                  50, # room 208 hallway
-                  100, # room 209 
-                  50, # room 210 small hallway
-                  100, # room 211 hallway
-                  rep(25,5), # rooms 212-216 small hallways
-                  rep(100,3), # rooms 217-219
-                  200, # room 220 large hallway/common area
-                  100,
-                  100,
-                  100# room 221 hallway
+                  1, # room 107 small research room
+                  18, # room 108 research lab
+                  44, # room 109 research lab / desks
+                  1,# room 110
+                  1,# room 111
+                  1,# room 112
+                  4,# room 113
+                  4,# room 114
+                  2,# room 115
+                  rep(1,2), # rooms 116 and 117 - small storage 
+                  rep(1,3), # rooms 118-120 facilities
+                  16, # rooms 121 large research lab
+                  8, # room 122
+                  10,# room 123
+                  1, # room 124
+                  5, # room 125
+                  rep(1,7), # rooms 126-132 offices
+                  rep(4,2), # rooms 133 and 134 bathrooms
+                  10, # room 135 small common area
+                  rep(1,3), # rooms 136-138 small offices
+                  40, # room 139 large conference room
+                  1, # room 140 facilities
+                  109, # rooms 141 hallway
+                  107, # room 142 hallway
+                  102, # room 143 hallway
+                  9, # room 144 hallway
+                  42,# room 145 hallway
+                  10,# room 146 hallway
+                  10,# room 147 hallway 
+                  12,# room 148 hallway
+                  3,# room 149 hallway
+                  36,# room 150 hallway
+                  28,# room 151 hallway
+                  38,# room 152 hallway
+                  40, # room 153 hallway with common area
+                  43, # room 154
+                  24, # room 155
+                  1, # room 156 facilities
+                  rep(1,10), # room 157-166 offices
+                  30, # room 167 large conference room
+                  1, # room 168 research lab storage
+                  18, # room 169 large research lab
+                  37, # room 170 research desk/lab space
+                  rep(1,6 ), # room 171 - 176 research storage 
+                  2, # room 177 large storage
+                  16, # room 178 large research lab
+                  rep(10,2), # room 179 and 180 classroom
+                  rep(1,6), # rooms 181 - 186 storage rooms
+                  rep(1,7), # rooms 187 - 193 offices
+                  rep(4, 2), # rooms 194 and 195 bathrooms
+                  1, # room 196 office
+                  5, # room 197 admin open space
+                  1, # room 198 office
+                  5, # room 199 admin open space
+                  rep(1,7), # room 200 - 206 office space
+                  1, # room 207 storage
+                  32, # room 208 hallway
+                  60, # room 209 
+                  55, # room 210 small hallway
+                  64, # room 211 hallway
+                  25, # room 212 hallway
+                  7, # room 213 hallway 
+                  6, # room 214 hallway
+                  8, # room 215 hallway
+                  3, # room 216 hallway
+                  86,# room 217 hallway 
+                  4, # room 218 hallway
+                  17, # room 219 hallway
+                  13, # room 220 hallway
+                  7, # room 221 hallway
+                  18, # room 222 hallway
+                  16 # room 223 hallway
+                  
 ) #  vector of the carrying capacities for each room - people
 
 
@@ -549,7 +587,7 @@ Office_network <- ggplot(Office_graph, aes(x = x, y = y, xend = xend, yend = yen
   theme_blank()+
   scale_size_continuous(
     name = "Room capacity",
-    breaks = seq(1, max(V(Office_graph)$capacity), by = 25),  # Set custom breaks
+    breaks = seq(1, max(V(Office_graph)$capacity), by = 5),  # Set custom breaks
     limits = c(1, max(V(Office_graph)$capacity)  )            # Define limits for the legend
   )+
   labs(title = "Network representation of an office")+
@@ -617,7 +655,7 @@ Max_Building_Capacity_Church <- sum(Church_C)
 # how full do we want our building capacity to be
 Adj_Max_Building_Capacity_Church <- round(Prop_full*Max_Building_Capacity_Church,0) #Adjusted capacity - number of individuals that will be in the building such that building is at 'Prop_full' capacity
 
-Church_data <- read.table(file = "Data/Church_output_Oct20_parms1.text",sep = " ")
+Church_data <- read.table(file = "Data/Church_output_Nov24_parms1.text",sep = " ")
 Church_data_clean <- Church_data%>% pivot_longer(cols = !time,
                                                    names_to = c("State", "Room"),
                                                    names_pattern = "([A-Za-z]+)(\\d+)",
