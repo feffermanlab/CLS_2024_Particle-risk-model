@@ -13,6 +13,7 @@ library(paletteer)
 library(pals)
 library(ggrepel)
 library(ggpubr)
+library(kableExtra)
 
 
 # delt is the proportionality constant
@@ -1234,6 +1235,7 @@ University_Init_conds_hundred_end <- c(N_x = University_setup_hundred_end$N_x, P
 
 
 church_graph<- graph_from_adjacency_matrix(church_adjacency_matrix, mode = "undirected")
+
 #take a look
 plot(church_graph)
 Office_graph<- graph_from_adjacency_matrix(Office_adjacency_matrix, mode = "undirected")
@@ -1269,6 +1271,10 @@ UTK_colors <- c(turq="#00746F",
                 yellowgreen = "#EBEA64")
 
 colors_to_use <- c("#44aa99","#ddcc77","#332288","#cc6677","#117733","#88ccee","#aa4499") #but we need 10 colors
+
+my_palette <-c("#fed98e","#fe9929","#d95f0e","#993404")
+brightened_variation <- c("#ffeda0", "#feb24c", "#fd8d3c", "#f03b20")
+inspired_by_nature <- c("#fdae61", "#f46d43", "#d73027", "#a50026")
 
 V(church_graph)$capacity <- Church_C
 V(church_graph)$Room <- seq(1:length(Church_C))
@@ -1366,8 +1372,8 @@ png(filename = "Figures/University_network.png",units="in", width=6, height=4, r
 University_network
 dev.off()
 
-
-#### Read in ALL Church the data ####
+#### Church analysis ####
+##### Read in ALL Church the data #####
 file_directory <- "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Data"
 
 # List all files with similar naming, using a pattern
@@ -1432,7 +1438,8 @@ church_net_with_num_particles_beg
 dev.off()
 
 
-#### Mid outbreak/peak ####
+
+###### Mid outbreak/peak ######
 
 # List all files with similar naming, using a pattern
 file_list_church_mid <- list.files(path = file_directory, 
@@ -1496,7 +1503,7 @@ church_net_with_num_particles_mid
 dev.off()
 
 
-#### end of outbreak ####
+###### end of outbreak ######
 # List all files with similar naming, using a pattern
 file_list_church_end <- list.files(path = file_directory, 
                                    pattern = "Church_output_Nov24_.*_end\\.text$", 
@@ -1559,7 +1566,7 @@ church_net_with_num_particles_end
 dev.off()
 
 
-#### making first bar plots - Church - beginning of outbreak at different capacities ####
+##### making first bar plots - Church - beginning of outbreak at different capacities #####
 
 Church_beg_equil_data<-Church_beg_data_factored %>% filter(time == max(time))
 
@@ -1599,12 +1606,598 @@ Church_end_bar_plot <- Church_end_equil_data %>%
   labs(y = "Number of infectious particles")+
   theme(axis.text.x=element_text(angle = 0))+coord_flip()
 
-  ggsave("plot.png", width = 10, height = 6)
+  #ggsave("plot.png", width = 10, height = 6)
 ggarrange(Church_beg_bar_plot, Church_mid_bar_plot, Church_end_bar_plot, nrow = 3)
 
 ggsave("Church_epi_threshold.png", width = 10, height = 10)
 
-#### Read in ALL the Office data ####
+##### HVAC threshold bar plots #####
+Church_Hvac_thresh_data_beg <- Church_beg_data_clean %>% filter(time == max(time))
+
+temp_C_x_Church <- data.frame(Room = as.character(seq(1:length(Church_C))),C_x = c(Church_C))
+Church_Hvac_thresh_data_beg <- left_join(Church_Hvac_thresh_data_beg,temp_C_x_Church, by = "Room")
+Church_Hvac_thresh_data_beg<- Church_Hvac_thresh_data_beg%>% 
+    mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Church_Hvac_thresh_data_beg <- Church_Hvac_thresh_data_beg %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Church_setup_eighty_beg$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+
+#Church_beg_equil_data<-Church_beg_data_factored %>% filter(time == max(time))
+
+Church_HVAC_bar_plot_beg <-Church_Hvac_thresh_data_beg %>% 
+  filter(file_source == "twenty"| file_source == "forty"| file_source == "sixty" | file_source == "eighty" | file_source == "hundred") %>% 
+  group_by(file_source) %>% 
+  ggplot(aes(x = Room, y = ratio))+
+  geom_col()+#geom_hline(yintercept = 16000,color = "red3",linetype = 2)+
+  facet_wrap(~file_source,scales = "free", ncol = 5,labeller = labeller(file_source = function(x) tools::toTitleCase(x)))+
+  labs(y = "Number of infectious particles")+
+  theme(axis.text.x=element_text(angle = 0))+coord_flip()
+
+
+Church_Hvac_thresh_data_mid <- Church_mid_data_clean %>% filter(time == max(time))
+
+temp_C_x_Church <- data.frame(Room = as.character(seq(1:length(Church_C))),C_x = c(Church_C))
+Church_Hvac_thresh_data_mid <- left_join(Church_Hvac_thresh_data_mid,temp_C_x_Church, by = "Room")
+Church_Hvac_thresh_data_mid<- Church_Hvac_thresh_data_mid%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Church_Hvac_thresh_data_mid <- Church_Hvac_thresh_data_mid %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Church_setup_eighty_mid$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+
+#Church_mid_equil_data<-Church_mid_data_factored %>% filter(time == max(time))
+
+Church_HVAC_bar_plot_mid <-Church_Hvac_thresh_data_mid %>% 
+  filter(file_source == "twenty"| file_source == "forty"| file_source == "sixty" | file_source == "eighty" | file_source == "hundred") %>% 
+  group_by(file_source) %>% 
+  ggplot(aes(x = Room, y = ratio))+
+  geom_col()+#geom_hline(yintercept = 16000,color = "red3",linetype = 2)+
+  facet_wrap(~file_source,scales = "free", ncol = 5,labeller = labeller(file_source = function(x) tools::toTitleCase(x)))+
+  labs(y = "Number of infectious particles")+
+  theme(axis.text.x=element_text(angle = 0))+coord_flip()
+
+
+
+Church_Hvac_thresh_data_end <- Church_end_data_clean %>% filter(time == max(time))
+
+temp_C_x_Church <- data.frame(Room = as.character(seq(1:length(Church_C))),C_x = c(Church_C))
+Church_Hvac_thresh_data_end <- left_join(Church_Hvac_thresh_data_end,temp_C_x_Church, by = "Room")
+Church_Hvac_thresh_data_end<- Church_Hvac_thresh_data_end%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Church_Hvac_thresh_data_end <- Church_Hvac_thresh_data_end %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Church_setup_eighty_end$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+
+#Church_end_equil_data<-Church_end_data_factored %>% filter(time == max(time))
+
+Church_HVAC_bar_plot_end <- Church_Hvac_thresh_data_end %>% 
+  filter(file_source == "twenty"| file_source == "forty"| file_source == "sixty" | file_source == "eighty" | file_source == "hundred") %>% 
+  group_by(file_source) %>% 
+  ggplot(aes(x = Room, y = ratio))+
+  geom_col()+#geom_hline(yintercept = 16000,color = "red3",linetype = 2)+
+  facet_wrap(~file_source,scales = "free", ncol = 5,labeller = labeller(file_source = function(x) tools::toTitleCase(x)))+
+  labs(y = "Number of infectious particles")+
+  theme(axis.text.x=element_text(angle = 0))+coord_flip()
+
+
+#ggsave("plot.png", width = 10, height = 6)
+ggarrange(Church_HVAC_bar_plot_beg, Church_HVAC_bar_plot_mid, Church_HVAC_bar_plot_end, nrow = 3)
+
+ggsave("Church_HVAC_threshold.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 15, height = 12)
+
+
+##### Extracting ratio value ranges for table #####
+
+# Church_Hvac_thresh_data_beg
+# Church_Hvac_thresh_data_mid
+# Church_Hvac_thresh_data_end
+
+Church_ratio_data_list <- list(Beginning = Church_Hvac_thresh_data_beg, Middle = Church_Hvac_thresh_data_mid, End = Church_Hvac_thresh_data_end)
+
+# Combine and add a column identifying the source
+Church_ratio_data_combined <- bind_rows(Church_ratio_data_list, .id = "Outbreak_point")
+
+Church_ratio_table_data<-Church_ratio_data_combined %>%
+  ungroup() %>%
+  group_by(Outbreak_point, file_source) %>%
+  reframe(ratio_range = range(ratio)) %>%
+  summarize(ratio_range = paste0(round(min(ratio_range),digits = 2), " - ", round(max(ratio_range),digits=2)), .by = c(Outbreak_point, file_source)) %>%
+  pivot_wider(names_from = file_source, values_from = ratio_range)
+
+Church_ratio_table_data %>%
+  kbl(format = "latex", booktabs = TRUE, caption = "Church Ratio Table") %>%
+  save_kable("Church_ratio_table.tex") 
+
+##### Infection_risk VS room capacity - Church #####
+Infection_risk_VS_room_cap_beg<-Church_Hvac_thresh_data_beg %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Church_beg_Infection_risk_V_Cx_beg <- ggplot(Infection_risk_VS_room_cap_beg, aes(x = C_x, y = P, color = file_source)) +
+  geom_point() +
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Beginning of outbreak",y= "Infectious particles", x = "Room capacity") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+Infection_risk_VS_room_cap_mid<-Church_Hvac_thresh_data_mid %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Church_mid_Infection_risk_V_Cx <- ggplot(Infection_risk_VS_room_cap_mid, aes(x = C_x, y = P, color = file_source)) +
+  geom_point() +
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Middle of outbreak",y= "Infectious particles", x = "Room capacity") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+
+Infection_risk_VS_room_cap_end<-Church_Hvac_thresh_data_end %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Church_end_Infection_risk_V_Cx <- ggplot(Infection_risk_VS_room_cap_end, aes(x = C_x, y = P, color = file_source)) +
+  geom_point() +
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "End of outbreak",y= "Infectious particles", x = "Room capacity") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+ggarrange(Church_beg_Infection_risk_V_Cx_beg,Church_mid_Infection_risk_V_Cx,Church_end_Infection_risk_V_Cx, 
+          ncol = 3,common.legend = TRUE,legend = "right")
+ggsave("Church_Part_v_room_cap.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 9, height = 3)
+
+##### Infection_risk VS Number of individuals in rooms - Church #####
+Infection_risk_VS_Nx_beg<-Church_Hvac_thresh_data_beg %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Church_beg_Infection_risk_V_Nx_beg <- ggplot(Infection_risk_VS_Nx_beg, aes(x = N_x, y = P, color = file_source)) +
+  geom_jitter(alpha = 0.8,width = 5)+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Beginning of outbreak",y= "Infectious particles", x = "Number of individuals in rooms") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+Infection_risk_VS_Nx_mid<-Church_Hvac_thresh_data_mid %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Church_mid_Infection_risk_V_Nx <- ggplot(Infection_risk_VS_Nx_mid, aes(x = N_x, y = P, color = file_source)) +
+  geom_jitter(alpha = 0.8,width = 5)+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Middle of outbreak",y= "Infectious particles", x = "Number of individuals in rooms") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+
+Infection_risk_VS_Nx_end<-Church_Hvac_thresh_data_end %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Church_end_Infection_risk_V_Nx <- ggplot(Infection_risk_VS_Nx_end, aes(x = N_x, y = P, color = file_source)) +
+  geom_jitter(alpha = 0.8,width = 5)+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "End of outbreak",y= "Infectious particles", x = "Number of individuals in rooms") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+ggarrange(Church_beg_Infection_risk_V_Nx_beg,Church_mid_Infection_risk_V_Nx,Church_end_Infection_risk_V_Nx, 
+          ncol = 3,common.legend = TRUE,legend = "right")
+ggsave("Church_Part_v_Nx.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 9, height = 3)
+
+
+##### How full rooms are - Church #####
+
+Church_Room_prop_full_beg<-Church_Hvac_thresh_data_beg %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred"))) %>% 
+  mutate(Room_prop_full = N_x/C_x)
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+ ggplot(Church_Room_prop_full_beg, aes(x = Room, y = Room_prop_full, fill = file_source)) +
+  geom_col()+facet_wrap(~file_source)
+  # scale_color_manual(
+  #   values = extended_palette, 
+  #   name = "Building occupancy\nlevel (%)"
+  # ) +  # Apply the extended palette
+  # labs(title = "Beginning of outbreak",y= "Infectious particles", x = "Number of individuals in rooms") +
+  # theme_minimal()+theme(plot.title.position = "panel",
+  #                       plot.title = element_text(hjust=0.5))
+ Church_Room_prop_full_mid<-Church_Hvac_thresh_data_mid %>% 
+   mutate(file_source= str_to_sentence(file_source)) %>% 
+   mutate(file_source = factor(file_source, 
+                               levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                          "Sixty", "Seventy", "Eighty", "Ninety", "Hundred"))) %>% 
+   mutate(Room_prop_full = N_x/C_x)
+ #the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+ 
+ extended_palette <- colorRampPalette(inspired_by_nature)(10)
+ 
+ # Plot
+ ggplot(Church_Room_prop_full_mid, aes(x = Room, y = Room_prop_full, fill = file_source)) +
+   geom_col()+facet_wrap(~file_source)
+ 
+ Church_Room_prop_full_end<-Church_Hvac_thresh_data_end %>% 
+   mutate(file_source= str_to_sentence(file_source)) %>% 
+   mutate(file_source = factor(file_source, 
+                               levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                          "Sixty", "Seventy", "Eighty", "Ninety", "Hundred"))) %>% 
+   mutate(Room_prop_full = N_x/C_x)
+ #the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+ 
+ extended_palette <- colorRampPalette(inspired_by_nature)(10)
+ 
+ # Plot
+ ggplot(Church_Room_prop_full_end, aes(x = Room, y = Room_prop_full, fill = file_source)) +
+   geom_col()+facet_wrap(~file_source)
+ ##### Network with prop full and number of individuals - Church #####
+ 
+ Church_Room_prop_full_beg <- Church_Room_prop_full_beg %>% filter(file_source == "Fifty")
+ V(church_graph)$capacity <- Church_C
+ V(church_graph)$Room <- seq(1:length(Church_C))
+ V(church_graph)$Particles <- Church_particles_for_network_beg$Number
+ V(church_graph)$Prop_full <-Church_Room_prop_full_beg$Room_prop_full
+ V(church_graph)$N_x <-Church_Room_prop_full_beg$N_x
+ #head(Church_beg_equil_data)
+ set.seed(154780)
+ network_w_prop_full_church_beg <- ggplot(church_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+   geom_edges(color = "grey75")+
+   geom_nodes(aes(size = capacity, color = Prop_full))+
+   geom_nodetext_repel(aes(label=Room))+
+   scale_size_continuous(name = "Capacity") +  # Customize the size legend
+   scale_color_gradientn(colors = inspired_by_nature,
+                         name = "Proportion full",
+                         limits = c(0, 1))+ # Define specific points on the scale
+   theme_blank()+
+   labs(title = "Beginning of outbreak - How full are rooms")+
+   theme(plot.title.position = "plot",
+         plot.title = element_text(hjust=1)
+   )
+ ggsave(filename = "Network_with_Room_prop_full_beg.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+ 
+ 
+ network_w_N_x_church_beg <- ggplot(church_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+   geom_edges(color = "grey75")+
+   geom_nodes(aes(size = capacity, color = N_x))+
+   geom_nodetext_repel(aes(label=Room))+
+   scale_size_continuous(name = "Capacity") +  # Customize the size legend
+   scale_color_gradientn(colors = inspired_by_nature,
+                         name = "Proportion full",
+                         limits = c(0, max(Church_Room_prop_full_beg$N_x)))+ # Define specific points on the scale
+   theme_blank()+
+   labs(title = "Beginning of outbreak - How full are rooms")+
+   theme(plot.title.position = "plot",
+         plot.title = element_text(hjust=1)
+   )
+ ggsave(filename = "Network_with_N_x_beg.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+ 
+ 
+ Church_Room_prop_full_mid <- Church_Room_prop_full_mid %>% filter(file_source == "Fifty")
+ V(church_graph)$capacity <- Church_C
+ V(church_graph)$Room <- seq(1:length(Church_C))
+ V(church_graph)$Particles <- Church_particles_for_network_mid$Number
+ V(church_graph)$Prop_full <-Church_Room_prop_full_mid$Room_prop_full
+ V(church_graph)$N_x <-Church_Room_prop_full_mid$N_x
+ #head(Church_mid_equil_data)
+ set.seed(154780)
+ network_w_prop_full_church_mid <- ggplot(church_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+   geom_edges(color = "grey75")+
+   geom_nodes(aes(size = capacity, color = Prop_full))+
+   geom_nodetext_repel(aes(label=Room))+
+   scale_size_continuous(name = "Capacity") +  # Customize the size legend
+   scale_color_gradientn(colors = inspired_by_nature,
+                         name = "Proportion full",
+                         limits = c(0, 1))+ # Define specific points on the scale
+   theme_blank()+
+   labs(title = "Middle of outbreak - How full are rooms")+
+   theme(plot.title.position = "plot",
+         plot.title = element_text(hjust=1)
+   )
+ ggsave(filename = "Network_with_Room_prop_full_mid.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+ set.seed(154780)
+ network_w_N_x_church_mid <- ggplot(church_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+   geom_edges(color = "grey75")+
+   geom_nodes(aes(size = capacity, color = N_x))+
+   geom_nodetext_repel(aes(label=Room))+
+   scale_size_continuous(name = "Capacity") +  # Customize the size legend
+   scale_color_gradientn(colors = inspired_by_nature,
+                         name = "Number of\nindividuals",
+                         limits = c(0,  max(Church_Room_prop_full_mid$N_x)))+ # Define specific points on the scale
+   theme_blank()+
+   labs(title = "Middle of outbreak - How full are rooms")+
+   theme(plot.title.position = "plot",
+         plot.title = element_text(hjust=1)
+   )
+ ggsave(filename = "Network_with_N_x_mid.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+ 
+ 
+ Church_Room_prop_full_end <- Church_Room_prop_full_end %>% filter(file_source == "Fifty")
+ V(church_graph)$capacity <- Church_C
+ V(church_graph)$Room <- seq(1:length(Church_C))
+ V(church_graph)$Particles <- Church_particles_for_network_end$Number
+ V(church_graph)$Prop_full <-Church_Room_prop_full_end$Room_prop_full
+ V(church_graph)$N_x <-Church_Room_prop_full_end$N_x
+ #head(Church_end_equil_data)
+ set.seed(154780)
+ network_w_prop_full_church_end <- ggplot(church_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+   geom_edges(color = "grey75")+
+   geom_nodes(aes(size = capacity, color = Prop_full))+
+   geom_nodetext_repel(aes(label=Room))+
+   scale_size_continuous(name = "Capacity") +  # Customize the size legend
+   scale_color_gradientn(colors = inspired_by_nature,
+                         name = "Proportion full",
+                         limits = c(0, 1))+ # Define specific points on the scale
+   theme_blank()+
+   labs(title = "End outbreak - How full are rooms")+
+   theme(plot.title.position = "plot",
+         plot.title = element_text(hjust=1)
+   )
+ ggsave(filename = "Network_with_Room_prop_full_beg.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+ 
+ set.seed(154780)
+ network_w_N_x_church_end <- ggplot(church_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+   geom_edges(color = "grey75")+
+   geom_nodes(aes(size = capacity, color = N_x))+
+   geom_nodetext_repel(aes(label=Room))+
+   scale_size_continuous(name = "Capacity") +  # Customize the size legend
+   scale_color_gradientn(colors = inspired_by_nature,
+                         name = "Number of\nindividuals",
+                         limits = c(0,  max(Church_Room_prop_full_end$N_x)))+ # Define specific points on the scale
+   theme_blank()+
+   labs(title = "End of outbreak - How full are rooms")+
+   theme(plot.title.position = "plot",
+         plot.title = element_text(hjust=1)
+   )
+ ggsave(filename = "Network_with_N_x_end.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+ 
+ ################# Note to self for tomorrow ######################
+ # So based on the bar plots, it does look like with increased occupancy, how full rooms are, increases
+ # The small rooms still fill up really fast though (these only have a capacity of like 1 individual)
+ # Looking at the raw number of people, most of the building is still within those large rooms. It might be good to sanity check with a different building
+ # The church is quite small and it is easy to get to small rooms
+ # does the way I set my initial conditions matter? It shouldn't, that is the whole point of being at steady state.
+ # but it does mean that rooms with one individual are probably already filled from the beginning and you won't see much change. 
+ # but it should be at equilibrium so it shouldn't make a difference anyways.
+ # I do think it would be worth while to look at other buildings that have more large rooms and different sized rooms 
+ # looking at the different outbreak times/ proportion of infected doesn't make much sense here because that's not what were interested in
+ # Were interested in differing numbers of individuals, so it may actually be better to look at different occupancy levels rather than proportions of infectious individuals in the building.
+ 
+ ggarrange(network_w_prop_full_church_beg,network_w_prop_full_church_mid,network_w_prop_full_church_end, ncol = 3,common.legend = TRUE,legend = "right")
+ ggsave(filename = "Network_with_Room_prop_full_All.png",
+        path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures",
+        width = 9, height = 5,dpi = 300)
+ 
+
+##### Particles versus degree #####
+
+Church_temp_adj_matrix <- church_adjacency_matrix
+diag(Church_temp_adj_matrix) <- 0
+Church_temp_graph <- graph_from_adjacency_matrix(Church_temp_adj_matrix,mode = "undirected")
+
+Church_degree_data_beg <- Church_beg_data_clean %>% filter(time == max(time))
+
+temp_C_x_Church <- data.frame(Room = as.character(seq(1:length(Church_C))),C_x = c(Church_C),Degree = degree(temp_graph))
+Church_degree_data_beg <- left_join(Church_degree_data_beg,temp_C_x_Church, by = "Room")
+Church_degree_data_beg<- Church_degree_data_beg%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Church_degree_data_beg <- Church_degree_data_beg %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Church_setup_eighty_end$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+Church_beg_Part_v_degree <-ggplot(Church_degree_data_beg,aes(x = Degree, y = P,color=file_source))+
+  geom_point()+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Beginning of outbreak",y= "Infectious particles", x = "Node degree") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+Church_degree_data_mid <- Church_mid_data_clean %>% filter(time == max(time))
+
+temp_C_x_Church <- data.frame(Room = as.character(seq(1:length(Church_C))),C_x = c(Church_C),Degree = degree(temp_graph))
+Church_degree_data_mid <- left_join(Church_degree_data_mid,temp_C_x_Church, by = "Room")
+Church_degree_data_mid<- Church_degree_data_mid%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Church_degree_data_mid <- Church_degree_data_mid %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Church_setup_eighty_end$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+Church_mid_Part_v_degree <- ggplot(Church_degree_data_mid,aes(x = Degree, y = P,color=file_source))+
+  geom_point()+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Middle of outbreak",y= "Infectious particles", x = "Node degree") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+Church_degree_data_end <- Church_end_data_clean %>% filter(time == max(time))
+
+temp_C_x_Church <- data.frame(Room = as.character(seq(1:length(Church_C))),C_x = c(Church_C),Degree = degree(temp_graph))
+Church_degree_data_end <- left_join(Church_degree_data_end,temp_C_x_Church, by = "Room")
+Church_degree_data_end<- Church_degree_data_end%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Church_degree_data_end <- Church_degree_data_end %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Church_setup_eighty_end$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+Church_end_Part_v_degree <-ggplot(Church_degree_data_end,aes(x = Degree, y = P,color=file_source))+
+  geom_point()+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "End of outbreak",y= "Infectious particles", x = "Node degree") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+ggarrange(Church_beg_Part_v_degree,Church_mid_Part_v_degree,Church_end_Part_v_degree, 
+          ncol = 3,common.legend = TRUE,legend = "right")
+ggsave("Church_Part_v_degree.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 9, height = 3)
+
+
+
+##### Network with num particles - Church #####
+
+Church_particles_for_network_beg <- Church_beg_equil_data %>% filter(file_source == "fifty")
+V(church_graph)$capacity <- Church_C
+V(church_graph)$Room <- seq(1:length(Church_C))
+V(church_graph)$Particles <- Church_particles_for_network_beg$Number
+#head(Church_beg_equil_data)
+  set.seed(154780)
+network_w_particles_church_beg <- ggplot(church_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+  geom_edges(color = "grey75")+
+  geom_nodes(aes(size = capacity, color = Particles))+
+  geom_nodetext_repel(aes(label=Room))+
+  scale_size_continuous(name = "Capacity") +  # Customize the size legend
+  scale_color_gradientn(colors = inspired_by_nature,
+                        name = "Particles",
+                        limits = c(0, 60000),  # Set the range for the scale (e.g., 0 to 100)
+                        breaks = c(0, 10000, 20000, 30000, 40000,50000) )+ # Define specific points on the scale
+  theme_blank()+
+  labs(title = "Beginning of outbreak")+
+  theme(plot.title.position = "plot",
+        plot.title = element_text(hjust=1)
+  )
+ggsave(filename = "Network_with_num_particles_beg.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+
+
+Church_particles_for_network_mid <- Church_mid_equil_data %>% filter(file_source == "fifty")
+V(church_graph)$capacity <- Church_C
+V(church_graph)$Room <- seq(1:length(Church_C))
+V(church_graph)$Particles <- Church_particles_for_network_mid$Number
+#head(Church_beg_equil_data)
+set.seed(154780)
+network_w_particles_church_mid<- ggplot(church_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+  geom_edges(color = "grey75")+
+  geom_nodes(aes(size = capacity, color = Particles))+
+  geom_nodetext_repel(aes(label=Room))+
+  scale_size_continuous(name = "Capacity") +  # Customize the size legend
+  scale_color_gradientn(colors = inspired_by_nature,
+                        name = "Particles",
+                        limits = c(0, 60000),  # Set the range for the scale (e.g., 0 to 100)
+                        breaks = c(0, 10000, 20000, 30000, 40000,50000) )  +
+  theme_blank()+
+  labs(title = "Middle/peak of outbreak")+
+  theme(plot.title.position = "plot",
+        plot.title = element_text(hjust=1)
+  )
+ggsave(filename = "Network_with_num_particles_mid.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+
+Church_particles_for_network_end <- Church_end_equil_data %>% filter(file_source == "fifty")
+V(church_graph)$capacity <- Church_C
+V(church_graph)$Room <- seq(1:length(Church_C))
+V(church_graph)$Particles <- Church_particles_for_network_end$Number
+#head(Church_beg_equil_data)
+set.seed(154780)
+network_w_particles_church_end <- ggplot(church_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+  geom_edges(color = "grey75")+
+  geom_nodes(aes(size = capacity, color = Particles))+
+  geom_nodetext_repel(aes(label=Room))+
+  scale_size_continuous(name = "Capacity") +  # Customize the size legend
+  scale_color_gradientn(colors = inspired_by_nature,
+                        name = "Particles",
+                        limits = c(0, 60000),  # Set the range for the scale (e.g., 0 to 100)
+                        breaks = c(0, 10000, 20000, 30000, 40000,50000) )  +
+  theme_blank()+
+  labs(title = "End of outbreak")+
+  theme(plot.title.position = "plot",
+        plot.title = element_text(hjust=1)
+  )
+ggsave(filename = "Network_with_num_particles_end.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+
+
+ggarrange(network_w_particles_church_beg,network_w_particles_church_mid,network_w_particles_church_end, ncol = 3,common.legend = TRUE,legend = "right")
+ggsave(filename = "Network_with_num_particles_All.png",
+       path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures",
+       width = 9, height = 5,dpi = 300)
+#### Office analysis ####
+##### Read in ALL the Office data #####
+
+##### Beginning of outbreak data ######
 file_directory <- "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Data"
 
 # List all files with similar naming, using a pattern
@@ -1669,7 +2262,7 @@ Office_net_with_num_particles_beg
 dev.off()
 
 
-#### Mid outbreak/peak ####
+##### Mid outbreak/peak data #####
 
 # List all files with similar naming, using a pattern
 file_list_Office_mid <- list.files(path = file_directory, 
@@ -1733,7 +2326,7 @@ Office_net_with_num_particles_mid
 dev.off()
 
 
-#### end of outbreak ####
+###### end of outbreak ######
 # List all files with similar naming, using a pattern
 file_list_Office_end <- list.files(path = file_directory, 
                                    pattern = "Office_output_Nov24_.*_end\\.text$", 
@@ -1796,7 +2389,7 @@ Office_net_with_num_particles_end
 dev.off()
 
 
-#### making first bar plots - Office - beginning of outbreak at different capacities ####
+##### making first bar plots - Office - beginning of outbreak at different capacities #####
 
 Office_beg_equil_data<-Office_beg_data_factored %>% filter(time == max(time))
 
@@ -1842,7 +2435,402 @@ ggarrange(Office_beg_bar_plot, Office_mid_bar_plot, Office_end_bar_plot, nrow = 
 ggsave("Office_epi_threshold.png", width = 10, height = 10)
 
 
-#### Read in ALL the Movie data ####
+##### HVAC threshold bar plots - Office #####
+Office_Hvac_thresh_data_beg <- Office_beg_data_clean %>% filter(time == max(time))
+
+temp_C_x_Office <- data.frame(Room = as.character(seq(1:length(Office_C))),C_x = c(Office_C))
+Office_Hvac_thresh_data_beg <- left_join(Office_Hvac_thresh_data_beg,temp_C_x_Office, by = "Room")
+Office_Hvac_thresh_data_beg<- Office_Hvac_thresh_data_beg%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Office_Hvac_thresh_data_beg <- Office_Hvac_thresh_data_beg %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Office_setup_eighty_beg$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+
+#Office_beg_equil_data<-Office_beg_data_factored %>% filter(time == max(time))
+
+Office_HVAC_bar_plot_beg <-Office_Hvac_thresh_data_beg %>% 
+  filter(file_source == "twenty"| file_source == "forty"| file_source == "sixty" | file_source == "eighty" | file_source == "hundred") %>% 
+  group_by(file_source) %>% 
+  ggplot(aes(x = Room, y = ratio))+
+  geom_col()+#geom_hline(yintercept = 16000,color = "red3",linetype = 2)+
+  facet_wrap(~file_source,scales = "free", ncol = 5,labeller = labeller(file_source = function(x) tools::toTitleCase(x)))+
+  labs(y = "Number of infectious particles")+
+  theme(axis.text.x=element_text(angle = 0))+coord_flip()
+
+
+Office_Hvac_thresh_data_mid <- Office_mid_data_clean %>% filter(time == max(time))
+
+temp_C_x_Office <- data.frame(Room = as.character(seq(1:length(Office_C))),C_x = c(Office_C))
+Office_Hvac_thresh_data_mid <- left_join(Office_Hvac_thresh_data_mid,temp_C_x_Office, by = "Room")
+Office_Hvac_thresh_data_mid<- Office_Hvac_thresh_data_mid%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Office_Hvac_thresh_data_mid <- Office_Hvac_thresh_data_mid %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Office_setup_eighty_mid$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+
+#Office_mid_equil_data<-Office_mid_data_factored %>% filter(time == max(time))
+
+Office_HVAC_bar_plot_mid <-Office_Hvac_thresh_data_mid %>% 
+  filter(file_source == "twenty"| file_source == "forty"| file_source == "sixty" | file_source == "eighty" | file_source == "hundred") %>% 
+  group_by(file_source) %>% 
+  ggplot(aes(x = Room, y = ratio))+
+  geom_col()+#geom_hline(yintercept = 16000,color = "red3",linetype = 2)+
+  facet_wrap(~file_source,scales = "free", ncol = 5,labeller = labeller(file_source = function(x) tools::toTitleCase(x)))+
+  labs(y = "Number of infectious particles")+
+  theme(axis.text.x=element_text(angle = 0))+coord_flip()
+
+
+
+Office_Hvac_thresh_data_end <- Office_end_data_clean %>% filter(time == max(time))
+
+temp_C_x_Office <- data.frame(Room = as.character(seq(1:length(Office_C))),C_x = c(Office_C))
+Office_Hvac_thresh_data_end <- left_join(Office_Hvac_thresh_data_end,temp_C_x_Office, by = "Room")
+Office_Hvac_thresh_data_end<- Office_Hvac_thresh_data_end%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Office_Hvac_thresh_data_end <- Office_Hvac_thresh_data_end %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Office_setup_eighty_end$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+
+#Office_end_equil_data<-Office_end_data_factored %>% filter(time == max(time))
+
+Office_HVAC_bar_plot_end <- Office_Hvac_thresh_data_end %>% 
+  filter(file_source == "twenty"| file_source == "forty"| file_source == "sixty" | file_source == "eighty" | file_source == "hundred") %>% 
+  group_by(file_source) %>% 
+  ggplot(aes(x = Room, y = ratio))+
+  geom_col()+#geom_hline(yintercept = 16000,color = "red3",linetype = 2)+
+  facet_wrap(~file_source,scales = "free", ncol = 5,labeller = labeller(file_source = function(x) tools::toTitleCase(x)))+
+  labs(y = "Number of infectious particles")+
+  theme(axis.text.x=element_text(angle = 0))+coord_flip()
+
+
+#ggsave("plot.png", width = 10, height = 6)
+ggarrange(Office_HVAC_bar_plot_beg, Office_HVAC_bar_plot_mid, Office_HVAC_bar_plot_end, nrow = 3)
+
+ggsave("Office_HVAC_threshold.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 15, height = 12)
+##### Extracting ratio value ranges for table #####
+
+# Office_Hvac_thresh_data_beg
+# Office_Hvac_thresh_data_mid
+# Office_Hvac_thresh_data_end
+
+Office_ratio_data_list <- list(Beginning = Office_Hvac_thresh_data_beg, Middle = Office_Hvac_thresh_data_mid, End = Office_Hvac_thresh_data_end)
+
+# Combine and add a column identifying the source
+Office_ratio_data_combined <- bind_rows(Office_ratio_data_list, .id = "Outbreak_point")
+
+Office_ratio_table_data<-Office_ratio_data_combined %>%
+  ungroup() %>%
+  group_by(Outbreak_point, file_source) %>%
+  reframe(ratio_range = range(ratio)) %>%
+  summarize(ratio_range = paste0(round(min(ratio_range),digits = 2), " - ", round(max(ratio_range),digits=2)), .by = c(Outbreak_point, file_source)) %>%
+  pivot_wider(names_from = file_source, values_from = ratio_range)
+
+Office_ratio_table_data %>%
+  kbl(format = "latex", booktabs = TRUE, caption = "Office Ratio Table") %>%
+  save_kable("Office_ratio_table.tex") 
+
+##### Infection_risk VS room capacity - Office #####
+Infection_risk_VS_room_cap_beg<-Office_Hvac_thresh_data_beg %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Office_beg_Infection_risk_V_Cx_beg <- ggplot(Infection_risk_VS_room_cap_beg, aes(x = C_x, y = P, color = file_source)) +
+  geom_point() +
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Beginning of outbreak",y= "Infectious particles", x = "Room capacity") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+Infection_risk_VS_room_cap_mid<-Office_Hvac_thresh_data_mid %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Office_mid_Infection_risk_V_Cx <- ggplot(Infection_risk_VS_room_cap_mid, aes(x = C_x, y = P, color = file_source)) +
+  geom_point() +
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Middle of outbreak",y= "Infectious particles", x = "Room capacity") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+
+Infection_risk_VS_room_cap_end<-Office_Hvac_thresh_data_end %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Office_end_Infection_risk_V_Cx <- ggplot(Infection_risk_VS_room_cap_end, aes(x = C_x, y = P, color = file_source)) +
+  geom_point() +
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "End of outbreak",y= "Infectious particles", x = "Room capacity") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+ggarrange(Office_beg_Infection_risk_V_Cx_beg,Office_mid_Infection_risk_V_Cx,Office_end_Infection_risk_V_Cx, 
+          ncol = 3,common.legend = TRUE,legend = "right")
+ggsave("Office_Part_v_room_cap.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 9, height = 3)
+
+
+##### Infection_risk VS Number of individuals in rooms - Office #####
+Infection_risk_VS_Nx_beg<-Office_Hvac_thresh_data_beg %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Office_beg_Infection_risk_V_Nx_beg <- ggplot(Infection_risk_VS_Nx_beg, aes(x = N_x, y = P, color = file_source)) +
+  geom_jitter(alpha = 0.8,width = 5)+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Beginning of outbreak",y= "Infectious particles", x = "Number of individuals in rooms") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+Infection_risk_VS_Nx_mid<-Office_Hvac_thresh_data_mid %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Office_mid_Infection_risk_V_Nx <- ggplot(Infection_risk_VS_Nx_mid, aes(x = N_x, y = P, color = file_source)) +
+  geom_jitter(alpha = 0.8,width = 5)+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Middle of outbreak",y= "Infectious particles", x = "Number of individuals in rooms") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+
+Infection_risk_VS_Nx_end<-Office_Hvac_thresh_data_end %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Office_end_Infection_risk_V_Nx <- ggplot(Infection_risk_VS_Nx_end, aes(x = N_x, y = P, color = file_source)) +
+  geom_jitter(alpha = 0.8,width = 5)+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "End of outbreak",y= "Infectious particles", x = "Number of individuals in rooms") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+ggarrange(Office_beg_Infection_risk_V_Nx_beg,Office_mid_Infection_risk_V_Nx,Office_end_Infection_risk_V_Nx, 
+          ncol = 3,common.legend = TRUE,legend = "right")
+ggsave("Office_Part_v_Nx.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 9, height = 3)
+
+
+##### Particles versus degree - Office #####
+
+Office_temp_adj_matrix <- Office_adjacency_matrix
+diag(Office_temp_adj_matrix) <- 0
+Office_temp_graph <- graph_from_adjacency_matrix(Office_temp_adj_matrix,mode = "undirected")
+
+Office_degree_data_beg <- Office_beg_data_clean %>% filter(time == max(time))
+
+temp_C_x_Office <- data.frame(Room = as.character(seq(1:length(Office_C))),C_x = c(Office_C),Degree = degree(Office_temp_graph))
+Office_degree_data_beg <- left_join(Office_degree_data_beg,temp_C_x_Office, by = "Room")
+Office_degree_data_beg<- Office_degree_data_beg%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Office_degree_data_beg <- Office_degree_data_beg %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Office_setup_eighty_end$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+Office_beg_Part_v_degree <-ggplot(Office_degree_data_beg,aes(x = Degree, y = P,color=file_source))+
+  geom_point()+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Beginning of outbreak",y= "Infectious particles", x = "Node degree") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+Office_degree_data_mid <- Office_mid_data_clean %>% filter(time == max(time))
+
+temp_C_x_Office <- data.frame(Room = as.character(seq(1:length(Office_C))),C_x = c(Office_C),Degree = degree(Office_temp_graph))
+Office_degree_data_mid <- left_join(Office_degree_data_mid,temp_C_x_Office, by = "Room")
+Office_degree_data_mid<- Office_degree_data_mid%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Office_degree_data_mid <- Office_degree_data_mid %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Office_setup_eighty_end$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+Office_mid_Part_v_degree <- ggplot(Office_degree_data_mid,aes(x = Degree, y = P,color=file_source))+
+  geom_point()+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Middle of outbreak",y= "Infectious particles", x = "Node degree") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+Office_degree_data_end <- Office_end_data_clean %>% filter(time == max(time))
+
+temp_C_x_Office <- data.frame(Room = as.character(seq(1:length(Office_C))),C_x = c(Office_C),Degree = degree(Office_temp_graph))
+Office_degree_data_end <- left_join(Office_degree_data_end,temp_C_x_Office, by = "Room")
+Office_degree_data_end<- Office_degree_data_end%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Office_degree_data_end <- Office_degree_data_end %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Office_setup_eighty_end$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+Office_end_Part_v_degree <-ggplot(Office_degree_data_end,aes(x = Degree, y = P,color=file_source))+
+  geom_point()+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "End of outbreak",y= "Infectious particles", x = "Node degree") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+ggarrange(Office_beg_Part_v_degree,Office_mid_Part_v_degree,Office_end_Part_v_degree, 
+          ncol = 3,common.legend = TRUE,legend = "right")
+ggsave("Office_Part_v_degree.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 9, height = 3)
+
+
+
+##### Network with Num particles - Office #####
+Office_particles_for_network_beg <- Office_beg_equil_data %>% filter(file_source == "fifty")
+V(Office_graph)$capacity <- Office_C
+V(Office_graph)$Room <- seq(1:length(Office_C))
+V(Office_graph)$Particles <- Office_particles_for_network_beg$Number
+#head(Office_beg_equil_data)
+set.seed(154780)
+network_w_particles_Office_beg <- ggplot(Office_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+  geom_edges(color = "grey75")+
+  geom_nodes(aes(size = capacity, color = Particles))+
+  geom_nodetext_repel(aes(label=Room))+
+  scale_size_continuous(name = "Capacity") +  # Customize the size legend
+  scale_color_gradientn(colors = inspired_by_nature,
+                        name = "Particles",
+                        limits = c(0, 20000),  # Set the range for the scale (e.g., 0 to 100)
+                        breaks = c(0, 4000, 8000, 12000, 16000,20000) )+ # Define specific points on the scale
+  theme_blank()+
+  labs(title = "Beginning of outbreak")+
+  theme(plot.title.position = "plot",
+        plot.title = element_text(hjust=1)
+  )
+ggsave(filename = "Network_with_num_particles_beg_Office.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+
+
+Office_particles_for_network_mid <-Office_mid_equil_data %>% filter(file_source == "fifty")
+V(Office_graph)$capacity <- Office_C
+V(Office_graph)$Room <- seq(1:length(Office_C))
+V(Office_graph)$Particles <- Office_particles_for_network_mid$Number
+#head(Office_beg_equil_data)
+set.seed(154780)
+network_w_particles_Office_mid<- ggplot(Office_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+  geom_edges(color = "grey75")+
+  geom_nodes(aes(size = capacity, color = Particles))+
+  geom_nodetext_repel(aes(label=Room))+
+  scale_size_continuous(name = "Capacity") +  # Customize the size legend
+  scale_color_gradientn(colors = inspired_by_nature,
+                        name = "Particles",
+                        limits = c(0, 20000),  # Set the range for the scale (e.g., 0 to 100)
+                        breaks = c(0, 4000, 8000, 12000, 16000,20000)  )  +
+  theme_blank()+
+  labs(title = "Middle/peak of outbreak")+
+  theme(plot.title.position = "plot",
+        plot.title = element_text(hjust=1)
+  )
+ggsave(filename = "Network_with_num_particles_mid_Office.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+
+Office_particles_for_network_end <- Office_end_equil_data %>% filter(file_source == "fifty")
+V(Office_graph)$capacity <- Office_C
+V(Office_graph)$Room <- seq(1:length(Office_C))
+V(Office_graph)$Particles <- Office_particles_for_network_end$Number
+#head(Office_beg_equil_data)
+set.seed(154780)
+network_w_particles_Office_end <- ggplot(Office_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+  geom_edges(color = "grey75")+
+  geom_nodes(aes(size = capacity, color = Particles))+
+  geom_nodetext_repel(aes(label=Room))+
+  scale_size_continuous(name = "Capacity") +  # Customize the size legend
+  scale_color_gradientn(colors = inspired_by_nature,
+                        name = "Particles",
+                        limits = c(0, 20000),  # Set the range for the scale (e.g., 0 to 100)
+                        breaks = c(0, 4000, 8000, 12000, 16000,20000)  )  +
+  theme_blank()+
+  labs(title = "End of outbreak")+
+  theme(plot.title.position = "plot",
+        plot.title = element_text(hjust=1)
+  )
+ggsave(filename = "Network_with_num_particles_end_Office.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+
+
+ggarrange(network_w_particles_Office_beg,network_w_particles_Office_mid,network_w_particles_Office_end, ncol = 3,common.legend = TRUE,legend = "right")
+ggsave(filename = "Network_with_num_particles_All_Office.png",
+       path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures",
+       width = 9, height = 5,dpi = 300)
+#### Movie Analysis ####
+##### Read in ALL the Movie data #####
 file_directory <- "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Data"
 
 # List all files with similar naming, using a pattern
@@ -1907,7 +2895,7 @@ Movie_net_with_num_particles_beg
 dev.off()
 
 
-#### Mid outbreak/peak ####
+##### Mid outbreak/peak #####
 
 # List all files with similar naming, using a pattern
 file_list_Movie_mid <- list.files(path = file_directory, 
@@ -1971,7 +2959,7 @@ Movie_net_with_num_particles_mid
 dev.off()
 
 
-#### end of outbreak ####
+##### end of outbreak #####
 # List all files with similar naming, using a pattern
 file_list_Movie_end <- list.files(path = file_directory, 
                                    pattern = "Movie_output_Nov24_.*_end\\.text$", 
@@ -2034,7 +3022,7 @@ Movie_net_with_num_particles_end
 dev.off()
 
 
-#### making first bar plots - Movie - beginning of outbreak at different capacities ####
+##### making first bar plots - Movie - beginning of outbreak at different capacities #####
 
 Movie_beg_equil_data<-Movie_beg_data_factored %>% filter(time == max(time))
 
@@ -2080,7 +3068,381 @@ ggarrange(Movie_beg_bar_plot, Movie_mid_bar_plot, Movie_end_bar_plot, nrow = 3)
 ggsave("Movie_epi_threshold.png", width = 10, height = 10)
 
 
-#### Read in University the University data ####
+##### HVAC threshold bar plots - Movie #####
+Movie_Hvac_thresh_data_beg <- Movie_beg_data_clean %>% filter(time == max(time))
+
+temp_C_x_Movie <- data.frame(Room = as.character(seq(1:length(Movie_C))),C_x = c(Movie_C))
+Movie_Hvac_thresh_data_beg <- left_join(Movie_Hvac_thresh_data_beg,temp_C_x_Movie, by = "Room")
+Movie_Hvac_thresh_data_beg<- Movie_Hvac_thresh_data_beg%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Movie_Hvac_thresh_data_beg <- Movie_Hvac_thresh_data_beg %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Movie_setup_eighty_beg$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+
+#Movie_beg_equil_data<-Movie_beg_data_factored %>% filter(time == max(time))
+
+Movie_HVAC_bar_plot_beg <-Movie_Hvac_thresh_data_beg %>% 
+  filter(file_source == "twenty"| file_source == "forty"| file_source == "sixty" | file_source == "eighty" | file_source == "hundred") %>% 
+  group_by(file_source) %>% 
+  ggplot(aes(x = Room, y = ratio))+
+  geom_col()+#geom_hline(yintercept = 16000,color = "red3",linetype = 2)+
+  facet_wrap(~file_source,scales = "free", ncol = 5,labeller = labeller(file_source = function(x) tools::toTitleCase(x)))+
+  labs(y = "Number of infectious particles")+
+  theme(axis.text.x=element_text(angle = 0))+coord_flip()
+
+
+Movie_Hvac_thresh_data_mid <- Movie_mid_data_clean %>% filter(time == max(time))
+
+temp_C_x_Movie <- data.frame(Room = as.character(seq(1:length(Movie_C))),C_x = c(Movie_C))
+Movie_Hvac_thresh_data_mid <- left_join(Movie_Hvac_thresh_data_mid,temp_C_x_Movie, by = "Room")
+Movie_Hvac_thresh_data_mid<- Movie_Hvac_thresh_data_mid%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Movie_Hvac_thresh_data_mid <- Movie_Hvac_thresh_data_mid %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Movie_setup_eighty_mid$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+
+#Movie_mid_equil_data<-Movie_mid_data_factored %>% filter(time == max(time))
+
+Movie_HVAC_bar_plot_mid <-Movie_Hvac_thresh_data_mid %>% 
+  filter(file_source == "twenty"| file_source == "forty"| file_source == "sixty" | file_source == "eighty" | file_source == "hundred") %>% 
+  group_by(file_source) %>% 
+  ggplot(aes(x = Room, y = ratio))+
+  geom_col()+#geom_hline(yintercept = 16000,color = "red3",linetype = 2)+
+  facet_wrap(~file_source,scales = "free", ncol = 5,labeller = labeller(file_source = function(x) tools::toTitleCase(x)))+
+  labs(y = "Number of infectious particles")+
+  theme(axis.text.x=element_text(angle = 0))+coord_flip()
+
+
+
+Movie_Hvac_thresh_data_end <- Movie_end_data_clean %>% filter(time == max(time))
+
+temp_C_x_Movie <- data.frame(Room = as.character(seq(1:length(Movie_C))),C_x = c(Movie_C))
+Movie_Hvac_thresh_data_end <- left_join(Movie_Hvac_thresh_data_end,temp_C_x_Movie, by = "Room")
+Movie_Hvac_thresh_data_end<- Movie_Hvac_thresh_data_end%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Movie_Hvac_thresh_data_end <- Movie_Hvac_thresh_data_end %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Movie_setup_eighty_end$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+
+#Movie_end_equil_data<-Movie_end_data_factored %>% filter(time == max(time))
+
+Movie_HVAC_bar_plot_end <- Movie_Hvac_thresh_data_end %>% 
+  filter(file_source == "twenty"| file_source == "forty"| file_source == "sixty" | file_source == "eighty" | file_source == "hundred") %>% 
+  group_by(file_source) %>% 
+  ggplot(aes(x = Room, y = ratio))+
+  geom_col()+#geom_hline(yintercept = 16000,color = "red3",linetype = 2)+
+  facet_wrap(~file_source,scales = "free", ncol = 5,labeller = labeller(file_source = function(x) tools::toTitleCase(x)))+
+  labs(y = "Number of infectious particles")+
+  theme(axis.text.x=element_text(angle = 0))+coord_flip()
+
+
+#ggsave("plot.png", width = 10, height = 6)
+ggarrange(Movie_HVAC_bar_plot_beg, Movie_HVAC_bar_plot_mid, Movie_HVAC_bar_plot_end, nrow = 3)
+
+ggsave("Movie_HVAC_threshold.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 15, height = 12)
+
+
+
+##### Infection_risk VS room capacity - Movie #####
+Infection_risk_VS_room_cap_beg<-Movie_Hvac_thresh_data_beg %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Movie_beg_Infection_risk_V_Cx_beg <- ggplot(Infection_risk_VS_room_cap_beg, aes(x = C_x, y = P, color = file_source)) +
+  geom_point() +
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Beginning of outbreak",y= "Infectious particles", x = "Room capacity") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+Infection_risk_VS_room_cap_mid<-Movie_Hvac_thresh_data_mid %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Movie_mid_Infection_risk_V_Cx <- ggplot(Infection_risk_VS_room_cap_mid, aes(x = C_x, y = P, color = file_source)) +
+  geom_point() +
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Middle of outbreak",y= "Infectious particles", x = "Room capacity") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+
+Infection_risk_VS_room_cap_end<-Movie_Hvac_thresh_data_end %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Movie_end_Infection_risk_V_Cx <- ggplot(Infection_risk_VS_room_cap_end, aes(x = C_x, y = P, color = file_source)) +
+  geom_point() +
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "End of outbreak",y= "Infectious particles", x = "Room capacity") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+ggarrange(Movie_beg_Infection_risk_V_Cx_beg,Movie_mid_Infection_risk_V_Cx,Movie_end_Infection_risk_V_Cx, 
+          ncol = 3,common.legend = TRUE,legend = "right")
+ggsave("Movie_Part_v_room_cap.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 9, height = 3)
+
+##### Infection_risk VS Number of individuals in rooms - Movie #####
+Infection_risk_VS_Nx_beg<-Movie_Hvac_thresh_data_beg %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Movie_beg_Infection_risk_V_Nx_beg <- ggplot(Infection_risk_VS_Nx_beg, aes(x = N_x, y = P, color = file_source)) +
+  geom_jitter(alpha = 0.8,width = 5)+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Beginning of outbreak",y= "Infectious particles", x = "Number of individuals in rooms") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+Infection_risk_VS_Nx_mid<-Movie_Hvac_thresh_data_mid %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Movie_mid_Infection_risk_V_Nx <- ggplot(Infection_risk_VS_Nx_mid, aes(x = N_x, y = P, color = file_source)) +
+  geom_jitter(alpha = 0.8,width = 5)+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Middle of outbreak",y= "Infectious particles", x = "Number of individuals in rooms") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+
+Infection_risk_VS_Nx_end<-Movie_Hvac_thresh_data_end %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+Movie_end_Infection_risk_V_Nx <- ggplot(Infection_risk_VS_Nx_end, aes(x = N_x, y = P, color = file_source)) +
+  geom_jitter(alpha = 0.8,width = 5)+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "End of outbreak",y= "Infectious particles", x = "Number of individuals in rooms") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+ggarrange(Movie_beg_Infection_risk_V_Nx_beg,Movie_mid_Infection_risk_V_Nx,Movie_end_Infection_risk_V_Nx, 
+          ncol = 3,common.legend = TRUE,legend = "right")
+ggsave("Movie_Part_v_Nx.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 9, height = 3)
+
+
+##### Particles versus degree - Movie #####
+
+Movie_temp_adj_matrix <- Movie_adjacency_matrix
+diag(Movie_temp_adj_matrix) <- 0
+Movie_temp_graph <- graph_from_adjacency_matrix(Movie_temp_adj_matrix,mode = "undirected")
+
+Movie_degree_data_beg <- Movie_beg_data_clean %>% filter(time == max(time))
+
+temp_C_x_Movie <- data.frame(Room = as.character(seq(1:length(Movie_C))),C_x = c(Movie_C),Degree = degree(Movie_temp_graph))
+Movie_degree_data_beg <- left_join(Movie_degree_data_beg,temp_C_x_Movie, by = "Room")
+Movie_degree_data_beg<- Movie_degree_data_beg%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Movie_degree_data_beg <- Movie_degree_data_beg %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Movie_setup_eighty_end$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+Movie_beg_Part_v_degree <-ggplot(Movie_degree_data_beg,aes(x = Degree, y = P,color=file_source))+
+  geom_point()+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Beginning of outbreak",y= "Infectious particles", x = "Node degree") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+Movie_degree_data_mid <- Movie_mid_data_clean %>% filter(time == max(time))
+
+temp_C_x_Movie <- data.frame(Room = as.character(seq(1:length(Movie_C))),C_x = c(Movie_C),Degree = degree(Movie_temp_graph))
+Movie_degree_data_mid <- left_join(Movie_degree_data_mid,temp_C_x_Movie, by = "Room")
+Movie_degree_data_mid<- Movie_degree_data_mid%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Movie_degree_data_mid <- Movie_degree_data_mid %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Movie_setup_eighty_end$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+Movie_mid_Part_v_degree <- ggplot(Movie_degree_data_mid,aes(x = Degree, y = P,color=file_source))+
+  geom_point()+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Middle of outbreak",y= "Infectious particles", x = "Node degree") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+Movie_degree_data_end <- Movie_end_data_clean %>% filter(time == max(time))
+
+temp_C_x_Movie <- data.frame(Room = as.character(seq(1:length(Movie_C))),C_x = c(Movie_C),Degree = degree(Movie_temp_graph))
+Movie_degree_data_end <- left_join(Movie_degree_data_end,temp_C_x_Movie, by = "Room")
+Movie_degree_data_end<- Movie_degree_data_end%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+Movie_degree_data_end <- Movie_degree_data_end %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = Movie_setup_eighty_end$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+Movie_end_Part_v_degree <-ggplot(Movie_degree_data_end,aes(x = Degree, y = P,color=file_source))+
+  geom_point()+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "End of outbreak",y= "Infectious particles", x = "Node degree") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+ggarrange(Movie_beg_Part_v_degree,Movie_mid_Part_v_degree,Movie_end_Part_v_degree, 
+          ncol = 3,common.legend = TRUE,legend = "right")
+ggsave("Movie_Part_v_degree.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 9, height = 3)
+
+
+##### Network with num particles fig - Movie #####
+Movie_particles_for_network_beg <- Movie_beg_equil_data %>% filter(file_source == "fifty")
+V(Movie_graph)$capacity <- Movie_C
+V(Movie_graph)$Room <- seq(1:length(Movie_C))
+V(Movie_graph)$Particles <- Movie_particles_for_network_beg$Number
+#head(Movie_beg_equil_data)
+set.seed(154780)
+network_w_particles_Movie_beg <- ggplot(Movie_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+  geom_edges(color = "grey75")+
+  geom_nodes(aes(size = capacity, color = Particles))+
+  geom_nodetext_repel(aes(label=Room))+
+  scale_size_continuous(name = "Capacity") +  # Customize the size legend
+  scale_color_gradientn(colors = inspired_by_nature,
+                        name = "Particles",
+                        limits = c(0, 100000),  # Set the range for the scale (e.g., 0 to 100)
+                        breaks = c(0, 40000, 80000, 120000, 160000,200000) )+ # Define specific points on the scale
+  theme_blank()+
+  labs(title = "Beginning of outbreak")+
+  theme(plot.title.position = "plot",
+        plot.title = element_text(hjust=1)
+  )
+ggsave(filename = "Network_with_num_particles_beg_Movie.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+
+
+Movie_particles_for_network_mid <-Movie_mid_equil_data %>% filter(file_source == "fifty")
+V(Movie_graph)$capacity <- Movie_C
+V(Movie_graph)$Room <- seq(1:length(Movie_C))
+V(Movie_graph)$Particles <- Movie_particles_for_network_mid$Number
+#head(Movie_beg_equil_data)
+set.seed(154780)
+network_w_particles_Movie_mid<- ggplot(Movie_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+  geom_edges(color = "grey75")+
+  geom_nodes(aes(size = capacity, color = Particles))+
+  geom_nodetext_repel(aes(label=Room))+
+  scale_size_continuous(name = "Capacity") +  # Customize the size legend
+  scale_color_gradientn(colors = inspired_by_nature,
+                        name = "Particles",
+                        limits = c(0, 100000),  # Set the range for the scale (e.g., 0 to 100)
+                        breaks = c(0, 40000, 80000, 120000, 160000,200000) )  +
+  theme_blank()+
+  labs(title = "Middle/peak of outbreak")+
+  theme(plot.title.position = "plot",
+        plot.title = element_text(hjust=1)
+  )
+ggsave(filename = "Network_with_num_particles_mid_Movie.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+
+Movie_particles_for_network_end <- Movie_end_equil_data %>% filter(file_source == "fifty")
+V(Movie_graph)$capacity <- Movie_C
+V(Movie_graph)$Room <- seq(1:length(Movie_C))
+V(Movie_graph)$Particles <- Movie_particles_for_network_end$Number
+#head(Movie_beg_equil_data)
+set.seed(154780)
+network_w_particles_Movie_end <- ggplot(Movie_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+  geom_edges(color = "grey75")+
+  geom_nodes(aes(size = capacity, color = Particles))+
+  geom_nodetext_repel(aes(label=Room))+
+  scale_size_continuous(name = "Capacity") +  # Customize the size legend
+  scale_color_gradientn(colors = inspired_by_nature,
+                        name = "Particles",
+                        limits = c(0, 100000),  # Set the range for the scale (e.g., 0 to 100)
+                        breaks = c(0, 40000, 80000, 120000, 160000,200000) )  +
+  theme_blank()+
+  labs(title = "End of outbreak")+
+  theme(plot.title.position = "plot",
+        plot.title = element_text(hjust=1)
+  )
+ggsave(filename = "Network_with_num_particles_end_Movie.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+
+
+ggarrange(network_w_particles_Movie_beg,network_w_particles_Movie_mid,network_w_particles_Movie_end, ncol = 3,common.legend = TRUE,legend = "right")
+ggsave(filename = "Network_with_num_particles_All_Movie.png",
+       path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures",
+       width = 9, height = 5,dpi = 300)
+#### University Analysis ####
+##### Read in University the University data #####
 file_directory <- "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Data"
 
 # List all files with similar naming, using a pattern
@@ -2145,7 +3507,7 @@ University_net_with_num_particles_beg
 dev.off()
 
 
-#### Mid outbreak/peak ####
+##### Mid outbreak/peak #####
 
 # List all files with similar naming, using a pattern
 file_list_University_mid <- list.files(path = file_directory, 
@@ -2209,7 +3571,7 @@ University_net_with_num_particles_mid
 dev.off()
 
 
-#### end of outbreak ####
+##### end of outbreak #####
 # List all files with similar naming, using a pattern
 file_list_University_end <- list.files(path = file_directory, 
                                    pattern = "University_output_Nov24_.*_end\\.text$", 
@@ -2272,7 +3634,7 @@ University_net_with_num_particles_end
 dev.off()
 
 
-#### making first bar plots - University - beginning of outbreak at different capacities ####
+##### making first bar plots - University - beginning of outbreak at different capacities #####
 
 University_beg_equil_data<-University_beg_data_factored %>% filter(time == max(time))
 
@@ -2317,6 +3679,458 @@ ggarrange(University_beg_bar_plot, University_mid_bar_plot, University_end_bar_p
 
 ggsave("University_epi_threshold.png", width = 10, height = 10)
 
+University_particles_for_network_beg <- University_beg_equil_data %>% filter(file_source == "fifty")
+V(University_graph)$capacity <- University_C
+V(University_graph)$Room <- seq(1:length(University_C))
+V(University_graph)$Particles <- University_particles_for_network_beg$Number
+#head(University_beg_equil_data)
+set.seed(154780)
+network_w_particles_University_beg <- ggplot(University_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+  geom_edges(color = "grey75")+
+  geom_nodes(aes(size = capacity, color = Particles))+
+  geom_nodetext_repel(aes(label=Room))+
+  scale_size_continuous(name = "Capacity") +  # Customize the size legend
+  scale_color_gradientn(colors = inspired_by_nature,
+                        name = "Particles",
+                        limits = c(0, 100000),  # Set the range for the scale (e.g., 0 to 100)
+                        breaks = c(0, 40000, 80000, 120000, 160000,200000) )+ # Define specific points on the scale
+  theme_blank()+
+  labs(title = "Beginning of outbreak")+
+  theme(plot.title.position = "plot",
+        plot.title = element_text(hjust=1)
+  )
+ggsave(filename = "Network_with_num_particles_beg_University.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+
+
+University_particles_for_network_mid <-University_mid_equil_data %>% filter(file_source == "fifty")
+V(University_graph)$capacity <- University_C
+V(University_graph)$Room <- seq(1:length(University_C))
+V(University_graph)$Particles <- University_particles_for_network_mid$Number
+#head(University_beg_equil_data)
+set.seed(154780)
+network_w_particles_University_mid<- ggplot(University_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+  geom_edges(color = "grey75")+
+  geom_nodes(aes(size = capacity, color = Particles))+
+  geom_nodetext_repel(aes(label=Room))+
+  scale_size_continuous(name = "Capacity") +  # Customize the size legend
+  scale_color_gradientn(colors = inspired_by_nature,
+                        name = "Particles",
+                        limits = c(0, 100000),  # Set the range for the scale (e.g., 0 to 100)
+                        breaks = c(0, 40000, 80000, 120000, 160000,200000) )  +
+  theme_blank()+
+  labs(title = "Middle/peak of outbreak")+
+  theme(plot.title.position = "plot",
+        plot.title = element_text(hjust=1)
+  )
+ggsave(filename = "Network_with_num_particles_mid_University.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+
+##### HVAC threshold bar plots - University #####
+University_Hvac_thresh_data_beg <- University_beg_data_clean %>% filter(time == max(time))
+
+temp_C_x_University <- data.frame(Room = as.character(seq(1:length(University_C))),C_x = c(University_C))
+University_Hvac_thresh_data_beg <- left_join(University_Hvac_thresh_data_beg,temp_C_x_University, by = "Room")
+University_Hvac_thresh_data_beg<- University_Hvac_thresh_data_beg%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+University_Hvac_thresh_data_beg <- University_Hvac_thresh_data_beg %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = University_setup_eighty_beg$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+
+#University_beg_equil_data<-University_beg_data_factored %>% filter(time == max(time))
+
+University_HVAC_bar_plot_beg <-University_Hvac_thresh_data_beg %>% 
+  filter(file_source == "twenty"| file_source == "forty"| file_source == "sixty" | file_source == "eighty" | file_source == "hundred") %>% 
+  group_by(file_source) %>% 
+  ggplot(aes(x = Room, y = ratio))+
+  geom_col()+#geom_hline(yintercept = 16000,color = "red3",linetype = 2)+
+  facet_wrap(~file_source,scales = "free", ncol = 5,labeller = labeller(file_source = function(x) tools::toTitleCase(x)))+
+  labs(y = "Number of infectious particles")+
+  theme(axis.text.x=element_text(angle = 0))+coord_flip()
+
+
+University_Hvac_thresh_data_mid <- University_mid_data_clean %>% filter(time == max(time))
+
+temp_C_x_University <- data.frame(Room = as.character(seq(1:length(University_C))),C_x = c(University_C))
+University_Hvac_thresh_data_mid <- left_join(University_Hvac_thresh_data_mid,temp_C_x_University, by = "Room")
+University_Hvac_thresh_data_mid<- University_Hvac_thresh_data_mid%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+University_Hvac_thresh_data_mid <- University_Hvac_thresh_data_mid %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = University_setup_eighty_mid$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+
+#University_mid_equil_data<-University_mid_data_factored %>% filter(time == max(time))
+
+University_HVAC_bar_plot_mid <-University_Hvac_thresh_data_mid %>% 
+  filter(file_source == "twenty"| file_source == "forty"| file_source == "sixty" | file_source == "eighty" | file_source == "hundred") %>% 
+  group_by(file_source) %>% 
+  ggplot(aes(x = Room, y = ratio))+
+  geom_col()+#geom_hline(yintercept = 16000,color = "red3",linetype = 2)+
+  facet_wrap(~file_source,scales = "free", ncol = 5,labeller = labeller(file_source = function(x) tools::toTitleCase(x)))+
+  labs(y = "Number of infectious particles")+
+  theme(axis.text.x=element_text(angle = 0))+coord_flip()
+
+
+
+University_Hvac_thresh_data_end <- University_end_data_clean %>% filter(time == max(time))
+
+temp_C_x_University <- data.frame(Room = as.character(seq(1:length(University_C))),C_x = c(University_C))
+University_Hvac_thresh_data_end <- left_join(University_Hvac_thresh_data_end,temp_C_x_University, by = "Room")
+University_Hvac_thresh_data_end<- University_Hvac_thresh_data_end%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+University_Hvac_thresh_data_end <- University_Hvac_thresh_data_end %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = University_setup_eighty_end$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+
+#University_end_equil_data<-University_end_data_factored %>% filter(time == max(time))
+
+University_HVAC_bar_plot_end <- University_Hvac_thresh_data_end %>% 
+  filter(file_source == "twenty"| file_source == "forty"| file_source == "sixty" | file_source == "eighty" | file_source == "hundred") %>% 
+  group_by(file_source) %>% 
+  ggplot(aes(x = Room, y = ratio))+
+  geom_col()+#geom_hline(yintercept = 16000,color = "red3",linetype = 2)+
+  facet_wrap(~file_source,scales = "free", ncol = 5,labeller = labeller(file_source = function(x) tools::toTitleCase(x)))+
+  labs(y = "Number of infectious particles")+
+  theme(axis.text.x=element_text(angle = 0))+coord_flip()
+
+
+#ggsave("plot.png", width = 10, height = 6)
+ggarrange(University_HVAC_bar_plot_beg, University_HVAC_bar_plot_mid, University_HVAC_bar_plot_end, nrow = 3)
+
+ggsave("University_HVAC_threshold.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 15, height = 12)
+
+
+##### Infection_risk VS room capacity - University #####
+Infection_risk_VS_room_cap_beg<-University_Hvac_thresh_data_beg %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+University_beg_Infection_risk_V_Cx_beg <- ggplot(Infection_risk_VS_room_cap_beg, aes(x = C_x, y = P, color = file_source)) +
+  geom_point() +
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Beginning of outbreak",y= "Infectious particles", x = "Room capacity") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+Infection_risk_VS_room_cap_mid<-University_Hvac_thresh_data_mid %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+University_mid_Infection_risk_V_Cx <- ggplot(Infection_risk_VS_room_cap_mid, aes(x = C_x, y = P, color = file_source)) +
+  geom_point() +
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Middle of outbreak",y= "Infectious particles", x = "Room capacity") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+
+Infection_risk_VS_room_cap_end<-University_Hvac_thresh_data_end %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+University_end_Infection_risk_V_Cx <- ggplot(Infection_risk_VS_room_cap_end, aes(x = C_x, y = P, color = file_source)) +
+  geom_point() +
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "End of outbreak",y= "Infectious particles", x = "Room capacity") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+ggarrange(University_beg_Infection_risk_V_Cx_beg,University_mid_Infection_risk_V_Cx,University_end_Infection_risk_V_Cx, 
+          ncol = 3,common.legend = TRUE,legend = "right")
+ggsave("University_Part_v_room_cap.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 9, height = 3)
+
+##### Infection_risk VS Number of individuals in rooms - University #####
+Infection_risk_VS_Nx_beg<-University_Hvac_thresh_data_beg %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+University_beg_Infection_risk_V_Nx_beg <- ggplot(Infection_risk_VS_Nx_beg, aes(x = N_x, y = P, color = file_source)) +
+  geom_jitter(alpha = 0.8,width = 5)+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Beginning of outbreak",y= "Infectious particles", x = "Number of individuals in rooms") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+Infection_risk_VS_Nx_mid<-University_Hvac_thresh_data_mid %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+University_mid_Infection_risk_V_Nx <- ggplot(Infection_risk_VS_Nx_mid, aes(x = N_x, y = P, color = file_source)) +
+  geom_jitter(alpha = 0.8,width = 5)+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Middle of outbreak",y= "Infectious particles", x = "Number of individuals in rooms") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+
+Infection_risk_VS_Nx_end<-University_Hvac_thresh_data_end %>% 
+  mutate(file_source= str_to_sentence(file_source)) %>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("Ten", "Twenty", "Thirty", "Forty", "Fifty", 
+                                         "Sixty", "Seventy", "Eighty", "Ninety", "Hundred")))
+#the data manipulation I did for the hvac threshold data is exactly what I need for these plots so just saving it to it's own data frame to use for these plots
+
+extended_palette <- colorRampPalette(inspired_by_nature)(10)
+
+# Plot
+University_end_Infection_risk_V_Nx <- ggplot(Infection_risk_VS_Nx_end, aes(x = N_x, y = P, color = file_source)) +
+  geom_jitter(alpha = 0.8,width = 5)+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "End of outbreak",y= "Infectious particles", x = "Number of individuals in rooms") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+ggarrange(University_beg_Infection_risk_V_Nx_beg,University_mid_Infection_risk_V_Nx,University_end_Infection_risk_V_Nx, 
+          ncol = 3,common.legend = TRUE,legend = "right")
+ggsave("University_Part_v_Nx.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 9, height = 3)
+
+
+##### Particles versus degree - University #####
+
+University_temp_adj_matrix <- University_adjacency_matrix
+diag(University_temp_adj_matrix) <- 0
+University_temp_graph <- graph_from_adjacency_matrix(University_temp_adj_matrix,mode = "undirected")
+
+University_degree_data_beg <- University_beg_data_clean %>% filter(time == max(time))
+
+temp_C_x_University <- data.frame(Room = as.character(seq(1:length(University_C))),C_x = c(University_C),Degree = degree(University_temp_graph))
+University_degree_data_beg <- left_join(University_degree_data_beg,temp_C_x_University, by = "Room")
+University_degree_data_beg<- University_degree_data_beg%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+University_degree_data_beg <- University_degree_data_beg %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = University_setup_eighty_end$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+University_beg_Part_v_degree <-ggplot(University_degree_data_beg,aes(x = Degree, y = P,color=file_source))+
+  geom_point()+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Beginning of outbreak",y= "Infectious particles", x = "Node degree") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+University_degree_data_mid <- University_mid_data_clean %>% filter(time == max(time))
+
+temp_C_x_University <- data.frame(Room = as.character(seq(1:length(University_C))),C_x = c(University_C),Degree = degree(University_temp_graph))
+University_degree_data_mid <- left_join(University_degree_data_mid,temp_C_x_University, by = "Room")
+University_degree_data_mid<- University_degree_data_mid%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+University_degree_data_mid <- University_degree_data_mid %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = University_setup_eighty_end$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+University_mid_Part_v_degree <- ggplot(University_degree_data_mid,aes(x = Degree, y = P,color=file_source))+
+  geom_point()+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "Middle of outbreak",y= "Infectious particles", x = "Node degree") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+University_degree_data_end <- University_end_data_clean %>% filter(time == max(time))
+
+temp_C_x_University <- data.frame(Room = as.character(seq(1:length(University_C))),C_x = c(University_C),Degree = degree(University_temp_graph))
+University_degree_data_end <- left_join(University_degree_data_end,temp_C_x_University, by = "Room")
+University_degree_data_end<- University_degree_data_end%>% 
+  mutate(file_source = factor(file_source, 
+                              levels = c("ten", "twenty", "thirty", "forty", "fifty", 
+                                         "sixty", "seventy", "eighty", "ninety", "hundred")),  # Custom order for file_source
+         Room = as.character(Room),  # Convert Room to a character vector
+         Room = factor(Room, levels = as.character(1:length(unique(Room))))) 
+University_degree_data_end <- University_degree_data_end %>% pivot_wider(names_from = c(State),values_from = c(Number)) %>% 
+  group_by(time, Room)%>%mutate(s =(parms$s),a = parms$a,bet_bar = parms$bet_bar,bet_hat= parms$bet_hat, Ib_prop = University_setup_eighty_end$Ib_prop[1],Numerator = s*N_x*Ib_prop , Denominator =(a*N_x*(P/(C_x*bet_bar))*(P/bet_bar)), ratio = Numerator/Denominator ) 
+
+University_end_Part_v_degree <-ggplot(University_degree_data_end,aes(x = Degree, y = P,color=file_source))+
+  geom_point()+
+  scale_color_manual(
+    values = extended_palette, 
+    name = "Building occupancy\nlevel (%)"
+  ) +  # Apply the extended palette
+  labs(title = "End of outbreak",y= "Infectious particles", x = "Node degree") +
+  theme_minimal()+theme(plot.title.position = "panel",
+                        plot.title = element_text(hjust=0.5))
+
+ggarrange(University_beg_Part_v_degree,University_mid_Part_v_degree,University_end_Part_v_degree, 
+          ncol = 3,common.legend = TRUE,legend = "right")
+ggsave("University_Part_v_degree.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 9, height = 3)
+
+
+##### Network with particle numbers #####
+University_particles_for_network_end <- University_end_equil_data %>% filter(file_source == "fifty")
+V(University_graph)$capacity <- University_C
+V(University_graph)$Room <- seq(1:length(University_C))
+V(University_graph)$Particles <- University_particles_for_network_end$Number
+#head(University_beg_equil_data)
+set.seed(154780)
+network_w_particles_University_end <- ggplot(University_graph, aes(x = x, y = y, xend = xend, yend = yend))+
+  geom_edges(color = "grey75")+
+  geom_nodes(aes(size = capacity, color = Particles))+
+  geom_nodetext_repel(aes(label=Room))+
+  scale_size_continuous(name = "Capacity") +  # Customize the size legend
+  scale_color_gradientn(colors = inspired_by_nature,
+                        name = "Particles",
+                        limits = c(0, 100000),  # Set the range for the scale (e.g., 0 to 100)
+                        breaks = c(0, 40000, 80000, 120000, 160000,200000) )  +
+  theme_blank()+
+  labs(title = "End of outbreak")+
+  theme(plot.title.position = "plot",
+        plot.title = element_text(hjust=1)
+  )
+ggsave(filename = "Network_with_num_particles_end_University.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures")
+
+
+ggarrange(network_w_particles_University_beg,network_w_particles_University_mid,network_w_particles_University_end, ncol = 3,common.legend = TRUE,legend = "right")
+ggsave(filename = "Network_with_num_particles_All_University.png",
+       path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures",
+       width = 9, height = 5,dpi = 300)
+
+
+#### Graphs for comparing all buildings ####
+
+#going to use the data frames with degree data, add column for saying what building it is.
+
+Church_degree_data_beg <- Church_degree_data_beg %>% mutate(Building = "Church")
+Church_degree_data_mid <- Church_degree_data_mid %>% mutate(Building = "Church")
+Church_degree_data_end <- Church_degree_data_end %>% mutate(Building = "Church")
+
+#Office
+Office_degree_data_beg <- Office_degree_data_beg %>% mutate(Building = "Office")
+Office_degree_data_mid <- Office_degree_data_mid %>% mutate(Building = "Office")
+Office_degree_data_end <- Office_degree_data_end %>% mutate(Building = "Office")
+
+#Movie
+Movie_degree_data_beg <- Movie_degree_data_beg %>% mutate(Building = "Movie")
+Movie_degree_data_mid <- Movie_degree_data_mid %>% mutate(Building = "Movie")
+Movie_degree_data_end <- Movie_degree_data_end %>% mutate(Building = "Movie")
+
+#University
+University_degree_data_beg <- University_degree_data_beg %>% mutate(Building = "University")
+University_degree_data_mid <- University_degree_data_mid %>% mutate(Building = "University")
+University_degree_data_end <- University_degree_data_end %>% mutate(Building = "University")
+
+
+data_list_beg <- list(Church = Church_degree_data_beg, Office= Office_degree_data_beg, Movie = Movie_degree_data_beg, University = University_degree_data_beg)
+
+# Combine and add a column identifying the source
+combined_data_beg <- bind_rows(data_list_beg, .id = "Building")
+
+data_list_mid <- list(Church = Church_degree_data_mid, Office= Office_degree_data_mid, Movie = Movie_degree_data_mid, University = University_degree_data_mid)
+
+# Combine and add a column identifying the source
+combined_data_mid <- bind_rows(data_list_mid, .id = "Building")
+
+data_list_end <- list(Church = Church_degree_data_end, Office= Office_degree_data_end, Movie = Movie_degree_data_end, University = University_degree_data_end)
+
+# Combine and add a column identifying the source
+combined_data_end <- bind_rows(data_list_end, .id = "Building")
+
+combined_data_beg %>% 
+  group_by(Building,file_source) %>% 
+  summarise(
+    Total_Rooms = n_distinct(Room),                       # Total number of unique rooms
+    Rooms_with_high_P = n_distinct(Room[P > 16000]),      # Count of rooms where P > 16000
+    Proportion_high_P = Rooms_with_high_P / Total_Rooms   # Proportion of rooms with P > 16000
+  ) %>% 
+  ggplot()+geom_col(aes(x = Building, y = Proportion_high_P), position = "dodge")+
+  facet_wrap(~file_source)+theme(axis.text.x =element_text(angle = 90))
+
+ggsave("Building_comparison_prop_risky_beg.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 15, height = 12)
+
+
+
+
+combined_data_mid %>% 
+  group_by(Building,file_source) %>% 
+  summarise(
+    Total_Rooms = n_distinct(Room),                       # Total number of unique rooms
+    Rooms_with_high_P = n_distinct(Room[P > 16000]),      # Count of rooms where P > 16000
+    Proportion_high_P = Rooms_with_high_P / Total_Rooms   # Proportion of rooms with P > 16000
+  ) %>% 
+  ggplot()+geom_col(aes(x = Building, y = Proportion_high_P), position = "dodge")+
+  facet_wrap(~file_source)+theme(axis.text.x =element_text(angle = 90))
+
+ggsave("Building_comparison_prop_risky_mid.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 15, height = 12)
+
+
+combined_data_end %>% 
+  group_by(Building,file_source) %>% 
+  summarise(
+    Total_Rooms = n_distinct(Room),                       # Total number of unique rooms
+    Rooms_with_high_P = n_distinct(Room[P > 16000]),      # Count of rooms where P > 16000
+    Proportion_high_P = Rooms_with_high_P / Total_Rooms   # Proportion of rooms with P > 16000
+  ) %>% 
+  ggplot()+geom_col(aes(x = Building, y = Proportion_high_P), position = "dodge")+
+  facet_wrap(~file_source)+theme(axis.text.x =element_text(angle = 90))
+
+ggsave("Building_comparison_prop_risky_end.png", path = "/Users/courtney/GitHub/CLS_2024_Particle-risk-model/Figures", width = 15, height = 12)
 
 
 
